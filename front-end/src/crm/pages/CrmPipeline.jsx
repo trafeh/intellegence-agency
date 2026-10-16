@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useCrm } from '../context/CrmContext'
 import { useAuth } from '../../context/AuthContext'
 import { useLanguage } from '../../context/LanguageContext'
@@ -20,13 +20,15 @@ import {
   XCircle,
   Sparkles,
   ChevronRight,
+  FileText,
   X
 } from 'lucide-react'
 
 export default function CrmPipeline() {
-  const { deals, stages, accounts, moveDealStage, addDeal, executeFollowUp } = useCrm()
+  const { deals, stages, accounts, quotes, moveDealStage, addDeal, executeFollowUp } = useCrm()
   const { currentUser, role } = useAuth()
   const { lang } = useLanguage()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [viewMode, setViewMode] = useState('kanban') // 'kanban' | 'table'
@@ -270,28 +272,42 @@ export default function CrmPipeline() {
                           </div>
                         </div>
 
-                        {/* Owner & Quick Next Stage Transition */}
+                        {/* Owner & Quick Actions */}
                         <div className="mt-2.5 flex items-center justify-between text-xs text-slate-400">
-                          <span className="truncate max-w-[130px] font-medium text-slate-500 dark:text-slate-400">
+                          <span className="truncate max-w-[120px] font-medium text-slate-500 dark:text-slate-400">
                             {deal.ownerName}
                           </span>
 
-                          {/* Quick Advance Button */}
-                          {nextStage && (
+                          <div className="flex items-center gap-1.5">
+                            {/* Create Quote Shortcut */}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
-                                moveDealStage(deal.id, nextStage)
+                                navigate(`/crm/quotes?action=new-quote&dealId=${deal.id}&accountId=${deal.accountId}`)
                               }}
-                              className="p-1 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-brand-600 hover:text-white text-slate-600 dark:text-slate-300 transition-colors"
-                              title="Advance to next sales stage"
+                              className="p-1 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-amber-500 hover:text-white text-slate-500 dark:text-slate-400 transition-colors"
+                              title={lang === 'ar' ? 'إنشاء عرض سعر (Devis)' : 'Generate Quote / Devis'}
                             >
-                              <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
+                              <FileText className="h-3.5 w-3.5" />
                             </button>
-                          )}
-                          {!nextStage && isWonStage && (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                          )}
+
+                            {/* Quick Advance Button */}
+                            {nextStage && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  moveDealStage(deal.id, nextStage)
+                                }}
+                                className="p-1 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-brand-600 hover:text-white text-slate-600 dark:text-slate-300 transition-colors"
+                                title="Advance to next sales stage"
+                              >
+                                <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
+                              </button>
+                            )}
+                            {!nextStage && isWonStage && (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            )}
+                          </div>
                         </div>
                       </div>
                     )
@@ -489,14 +505,64 @@ export default function CrmPipeline() {
                   ))}
                 </div>
               </div>
+
+              {/* Associated Quotes / Offers */}
+              <div className="pt-3 border-t border-slate-100 dark:border-white/5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5 text-brand-500" />
+                    <span>{lang === 'ar' ? 'عروض الأسعار المرتبطة' : 'Official Quotes & Proposals'}</span>
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-400">
+                    {quotes.filter(q => q.dealId === selectedDeal.id).length} {lang === 'ar' ? 'عرض' : 'quote(s)'}
+                  </span>
+                </div>
+                {quotes.filter(q => q.dealId === selectedDeal.id).length > 0 ? (
+                  <div className="space-y-1.5">
+                    {quotes.filter(q => q.dealId === selectedDeal.id).map(q => (
+                      <div
+                        key={q.id}
+                        onClick={() => navigate('/crm/quotes')}
+                        className="cursor-pointer flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200/60 dark:border-white/5 transition-all text-xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-brand-600 dark:text-brand-400">{q.id}</span>
+                          <span className="text-slate-500 dark:text-slate-400 font-medium">({formatMAD(q.totalTTC)})</span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          q.status === 'Accepted' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' :
+                          q.status === 'Sent' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' :
+                          'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                        }`}>
+                          {q.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400 dark:text-slate-500 italic">
+                    {lang === 'ar' ? 'لا يوجد عرض سعر رسمي بعد لهذه الصفقة' : 'No formal quote generated yet for this opportunity.'}
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div className="p-4 border-t border-slate-100 dark:border-white/5 flex justify-end gap-3 bg-slate-50 dark:bg-white/5">
+            <div className="p-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-between gap-3 bg-slate-50 dark:bg-white/5">
+              <button
+                onClick={() => {
+                  navigate(`/crm/quotes?action=new-quote&dealId=${selectedDeal.id}&accountId=${selectedDeal.accountId}`)
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/30 transition-all"
+              >
+                <FileText className="h-4 w-4" />
+                <span>{lang === 'ar' ? 'إنشاء عرض سعر (Devis)' : 'Generate Official Quote'}</span>
+              </button>
+
               <button
                 onClick={() => setSelectedDeal(null)}
-                className="px-5 py-2 rounded-xl bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-300"
+                className="px-5 py-2 rounded-xl bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-300 dark:hover:bg-white/20 transition-colors"
               >
-                Close
+                {lang === 'ar' ? 'إغلاق' : 'Close'}
               </button>
             </div>
           </div>

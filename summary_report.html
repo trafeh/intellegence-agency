@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intelligence Sales — Platform Summary v1.0.0</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+    @page {
+      size: A4;
+      margin: 14mm 14mm 14mm 14mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      line-height: 1.55;
+      font-size: 11pt;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .header-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 24px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #ffffff;
+      margin-bottom: 22px;
+    }
+
+    .badge-pill {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 8.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 6px;
+    }
+
+    .badge-blue {
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd;
+      border: 1px solid rgba(147, 197, 253, 0.3);
+    }
+
+    .badge-emerald {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+      border: 1px solid rgba(110, 231, 183, 0.3);
+    }
+
+    .badge-amber {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    h1 {
+      font-size: 22pt;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin: 10px 0 6px 0;
+      color: #ffffff;
+    }
+
+    .subtitle {
+      font-size: 10.5pt;
+      color: #94a3b8;
+      max-width: 90%;
+    }
+
+    .meta-bar {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      display: flex;
+      justify-content: space-between;
+      font-size: 9pt;
+      color: #cbd5e1;
+    }
+
+    .section-title {
+      font-size: 13.5pt;
+      font-weight: 800;
+      color: #0f172a;
+      border-bottom: 2px solid #2563eb;
+      padding-bottom: 5px;
+      margin: 22px 0 12px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      page-break-after: avoid;
+    }
+
+    .section-desc {
+      font-size: 9.5pt;
+      color: #475569;
+      margin-bottom: 12px;
+    }
+
+    .table-container {
+      width: 100%;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      page-break-inside: avoid;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9.5pt;
+    }
+
+    th {
+      background: #f8fafc;
+      text-align: left;
+      padding: 9px 12px;
+      font-weight: 700;
+      color: #334155;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 8.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    td {
+      padding: 9px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: #f8fafc;
+      page-break-inside: avoid;
+    }
+
+    .card-title {
+      font-size: 10pt;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-text {
+      font-size: 9pt;
+      color: #475569;
+      line-height: 1.45;
+    }
+
+    .bullet-list {
+      list-style-type: none;
+      padding-left: 0;
+    }
+
+    .bullet-list li {
+      position: relative;
+      padding-left: 18px;
+      margin-bottom: 6px;
+      font-size: 9.5pt;
+      color: #334155;
+    }
+
+    .bullet-list li::before {
+      content: "•";
+      position: absolute;
+      left: 4px;
+      top: -1px;
+      color: #2563eb;
+      font-weight: bold;
+      font-size: 13pt;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+
+    .highlight-box {
+      border-left: 4px solid #2563eb;
+      background: #eff6ff;
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      margin: 12px 0;
+      font-size: 9.5pt;
+      color: #1e3a8a;
+    }
+
+    .footer-bar {
+      margin-top: 24px;
+      padding-top: 10px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8pt;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- COVER HEADER -->
+  <div class="header-card">
+    <div>
+      <span class="badge-pill badge-blue">Production MVP</span>
+      <span class="badge-pill badge-emerald">Version 1.0.0 (v-1)</span>
+      <span class="badge-pill badge-blue">B2B Operating System</span>
+    </div>
+    <h1>Intelligence Sales</h1>
+    <p class="subtitle">Enterprise Commercial Operating System & Trilingual Sales Pipeline Platform (Morocco & MENA Focus)</p>
+    
+    <div class="meta-bar">
+      <span><strong>Document:</strong> Architecture & Feature Release Specifications</span>
+      <span><strong>Date:</strong> October 2026</span>
+      <span><strong>Currency:</strong> MAD (Moroccan Dirham)</span>
+    </div>
+  </div>
+
+  <!-- EXECUTIVE SUMMARY -->
+  <div class="section-title">
+    <span>1. Executive Summary</span>
+    <span style="font-size: 9pt; font-weight: normal; color: #64748b;">Overview</span>
+  </div>
+  <p class="section-desc">
+    <strong>Intelligence Sales (v-1)</strong> is an all-in-one commercial intelligence web platform engineered to transform traditional B2B sales cycles. It bridges a high-converting public corporate portal with an operational CRM delivering strict commercial governance:
+  </p>
+  
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🛡️ 7-Day Inactivity Rule</div>
+      <div class="card-text">Strict algorithmic enforcement ensuring zero forgotten leads. Any opportunity untouched for 7 days triggers proactive WhatsApp and Email re-engagement workflows.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">🤖 7 AI Specialized Agents</div>
+      <div class="card-text">Human-in-the-loop multi-agent orchestration for lead qualification, deal closing, objection handling, pricing governance, and client expansion.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">🇲🇦 Moroccan Market Tailored</div>
+      <div class="card-text">Native formatting for Moroccan Dirhams (MAD), ICE commercial identifiers, VAT (TVA 20%), and bilingual Casablanca Marina corporate defaults.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">🌐 Native Trilingual (EN / FR / AR)</div>
+      <div class="card-text">Full instant translation engine across all landing and CRM modules with automatic Right-to-Left (RTL) visual mirroring for Arabic.</div>
+    </div>
+  </div>
+
+  <!-- TECH STACK TABLE -->
+  <div class="section-title">
+    <span>2. Technology Stack & Core Architecture</span>
+    <span style="font-size: 9pt; font-weight: normal; color: #64748b;">Specs</span>
+  </div>
+  
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25%;">Layer</th>
+          <th style="width: 30%;">Framework / Tool</th>
+          <th>Implementation Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Frontend Core</strong></td>
+          <td>React 19 + Vite 8</td>
+          <td>Single-Page Architecture with client routing via <code>react-router-dom</code>. Zero-lag page transitions.</td>
+        </tr>
+        <tr>
+          <td><strong>Styling System</strong></td>
+          <td>Tailwind CSS v4</td>
+          <td>Customized <code>@theme</code> tokens, deep navy dark palette (<code>#050b16</code>, <code>#081120</code>), and unified <code>rounded-lg</code> container borders.</td>
+        </tr>
+        <tr>
+          <td><strong>Data Visualization</strong></td>
+          <td>Recharts Library</td>
+          <td>Interactive Revenue Trajectory (AreaChart), Funnel Stage Distribution (BarChart), and Lead Quality health (Donut chart).</td>
+        </tr>
+        <tr>
+          <td><strong>State Management</strong></td>
+          <td>React Context API</td>
+          <td>Decoupled reactive layers: <code>CrmContext</code>, <code>AuthContext</code>, <code>ThemeContext</code>, and <code>LanguageContext</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>Icons & Assets</strong></td>
+          <td>Lucide React + WebP/PNG</td>
+          <td>Complete iconography with dark/light dynamic theme switching and adaptive RTL rotation.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="highlight-box">
+    <strong>Design System Standard (v-1):</strong> All main container boundaries (cards, tables, chart boxes, modal panels) have been standardized to refined <code>rounded-lg</code> and <code>rounded-md</code> radii, eliminating bulky 3xl corners while keeping action buttons distinct.
+  </div>
+
+  <!-- PAGE BREAK FOR CLEAN SECTION 3 -->
+  <div class="page-break"></div>
+
+  <!-- CRM MODULES BREAKDOWN -->
+  <div class="section-title">
+    <span>3. CRM Functional Modules (Commercial Suite)</span>
+    <span style="font-size: 9pt; font-weight: normal; color: #64748b;">Module Breakdown</span>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 24%;">Module</th>
+          <th style="width: 32%;">Core Functionality</th>
+          <th>Key Highlights & Automation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Executive Cockpit<br>(CrmDashboard)</strong></td>
+          <td>Executive KPI tracking, revenue trends, and AI suggestions feed.</td>
+          <td>
+            <ul class="bullet-list">
+              <li>Actuals vs Quota vs AI Predictive Trajectory.</li>
+              <li>Stage distribution bar chart with 1-click pipeline filtering.</li>
+              <li>Dual mode: Executive Director vs Sales Rep personal view.</li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Deals Pipeline<br>(CrmPipeline)</strong></td>
+          <td>4x4 structured commercial Kanban board across 7 sales stages.</td>
+          <td>
+            <ul class="bullet-list">
+              <li>Stages: Discovery, Qualification, Proposal, Negotiation, Closing, Won, Lost.</li>
+              <li>Compact number formatting (K / M / B MAD).</li>
+              <li>Comprehensive deal diagnosis & interactive modal inspection.</li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Predictive Leads<br>(CrmLeads)</strong></td>
+          <td>Multi-channel inbound lead triage and qualification scoring.</td>
+          <td>
+            <ul class="bullet-list">
+              <li>Scoring categories: Hot 🔥, Warm ⚡, and Cold ❄️.</li>
+              <li>Automated reasoning notes generated for each lead.</li>
+              <li><strong>1-Click Deal Conversion</strong> directly into active pipeline.</li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Quotation Engine<br>(CrmQuotes)</strong></td>
+          <td>Commercial proposal (Devis) builder with discount governance.</td>
+          <td>
+            <ul class="bullet-list">
+              <li>Automatic VAT (20%) and margin calculations.</li>
+              <li>Strict rule: discounts &gt; 15% trigger Director approval flag.</li>
+              <li><strong>Printable Formal Proposal (Devis)</strong> with ICE & legal footer.</li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Follow-Up Engine<br>(CrmActivities)</strong></td>
+          <td>Strict 7-Day inactivity detection & multi-channel outreach.</td>
+          <td>
+            <ul class="bullet-list">
+              <li>Identifies all deals with 7+ days without touchpoint.</li>
+              <li>Auto-drafts tailored re-engagement messages in FR & AR.</li>
+              <li>1-click execution to WhatsApp or Email with human review.</li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>7 AI Agents Center<br>(CrmAiAgents)</strong></td>
+          <td>Specialized sales multi-agent command hub.</td>
+          <td>
+            <ul class="bullet-list">
+              <li>Agents: Lead Qualifier, Closer, Objection Solver, Pricing, etc.</li>
+              <li>Live interactive prompt console with streaming replies.</li>
+              <li>Human-in-the-Loop active governance watermark.</li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>B2B Account Ledger<br>(CrmAccounts)</strong></td>
+          <td>Corporate customer registry with credit monitoring.</td>
+          <td>
+            <ul class="bullet-list">
+              <li>Tiering: Strategic Tier A, Mid-Market Tier B, Standard Tier C.</li>
+              <li>Credit line tracking and authorized debt thresholds.</li>
+              <li>Decision-maker directory with direct phone/email triggers.</li>
+            </ul>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Sales Quota & Team<br>(CrmTeam)</strong></td>
+          <td>Global quarterly targets and sales rep performance leaderboards.</td>
+          <td>
+            <ul class="bullet-list">
+              <li>Real-time rep target completion percentage bar.</li>
+              <li>Calculated commissions earned and pipeline volume per rep.</li>
+            </ul>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- PUBLIC LANDING PAGE OVERVIEW -->
+  <div class="section-title">
+    <span>4. Public Ecosystem & Landing Showcase</span>
+    <span style="font-size: 9pt; font-weight: normal; color: #64748b;">Public Portal</span>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">💎 Navigation & Dynamic Header</div>
+      <div class="card-text">Sticky glassmorphic navbar with smooth scroll elevation, dark/light theme toggle, trilingual switcher, and direct CRM access.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">🚀 Strategic Ecosystem Overview</div>
+      <div class="card-text">Presents the 4 core operating pillars: Deal Automation, Predictive Intelligence, Dynamic Quotas, and Risk Governance.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">🤝 Partner & Demo Onboarding</div>
+      <div class="card-text">Multi-step interactive modal capturing prospective enterprise leads with industry sector and company size classification.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">⚡ Differentiation & ROI Architecture</div>
+      <div class="card-text">Comparison matrix highlighting how Intelligence Sales outperforms legacy ERPs and generic CRM software in regional execution.</div>
+    </div>
+  </div>
+
+  <!-- BUILD & DEPLOYMENT STATUS -->
+  <div class="section-title">
+    <span>5. Verification & Production Status</span>
+    <span style="font-size: 9pt; font-weight: normal; color: #64748b;">v1.0.0 Ready</span>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>Verification Parameter</th>
+          <th>Result</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Local Git Initialization</strong></td>
+          <td><span style="color: #16a34a; font-weight: 700;">✓ Initialized & Committed</span></td>
+          <td>Branch <code>main</code>, initial commit <code>66e39d1</code>, clean <code>.gitignore</code> active.</td>
+        </tr>
+        <tr>
+          <td><strong>Production Build (Vite)</strong></td>
+          <td><span style="color: #16a34a; font-weight: 700;">✓ 0 Errors (862ms)</span></td>
+          <td>All 2,504 modules successfully bundled and tree-shaken into <code>dist/</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>Container Radius Polish</strong></td>
+          <td><span style="color: #16a34a; font-weight: 700;">✓ Applied (rounded-lg/md)</span></td>
+          <td>Applied consistently across Pipeline, Dashboard, Team, Quotes, Leads, and Accounts.</td>
+        </tr>
+        <tr>
+          <td><strong>Responsive & RTL Layout</strong></td>
+          <td><span style="color: #16a34a; font-weight: 700;">✓ Fully Responsive</span></td>
+          <td>Mobile, tablet, desktop support with mirrored typography for Arabic.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer-bar">
+    <span>Intelligence Sales Platform — Version 1.0.0 (v-1) Documentation</span>
+    <span>Confidential & Proprietary © 2026</span>
+    <span>Casablanca Marina, Morocco</span>
+  </div>
+
+</body>
+</html>

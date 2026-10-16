@@ -270,6 +270,25 @@ export function CrmProvider({ children }) {
       ownerName: currentUser?.name || 'Karim Tazi',
     }
     setQuotes(prev => [newQuote, ...prev])
+
+    // Automatically transition Deal to 'proposal' stage if it is in an earlier stage
+    if (quoteData.dealId) {
+      setDeals(prevDeals =>
+        prevDeals.map(d => {
+          if (d.id === quoteData.dealId && (d.stage === 'leads' || d.stage === 'qualification' || d.stage === 'discovery')) {
+            return {
+              ...d,
+              stage: 'proposal',
+              probability: Math.max(d.probability, 60),
+              lastActivityDaysAgo: 0,
+              aiRecommendation: `Formal quote ${newQuote.id} generated. Follow up with client within 3 days.`
+            }
+          }
+          return d
+        })
+      )
+    }
+
     return newQuote
   }
 

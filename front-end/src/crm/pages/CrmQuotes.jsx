@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useCrm } from '../context/CrmContext'
 import { useAuth } from '../../context/AuthContext'
 import { useLanguage } from '../../context/LanguageContext'
@@ -24,6 +25,7 @@ export default function CrmQuotes() {
   const { quotes, deals, accounts, addQuote, approveQuoteDiscount, acceptQuote } = useCrm()
   const { currentUser, role } = useAuth()
   const { lang } = useLanguage()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -42,6 +44,41 @@ export default function CrmQuotes() {
       { description: 'AI Sales Agents & Smart Follow-Up Engine', qty: 1, unitPrice: 45000, total: 45000 },
     ]
   })
+
+  // Respond to URL query parameters (e.g. from Opportunity modal)
+  useEffect(() => {
+    const action = searchParams.get('action')
+    const dealIdParam = searchParams.get('dealId')
+    const accountIdParam = searchParams.get('accountId')
+
+    if (action === 'new-quote') {
+      setIsNewQuoteOpen(true)
+      if (dealIdParam || accountIdParam) {
+        const targetDeal = deals.find(d => d.id === dealIdParam)
+        const targetAccount = accounts.find(a => a.id === (accountIdParam || targetDeal?.accountId))
+
+        setNewQuoteForm(prev => {
+          let items = prev.items
+          if (targetDeal?.products && targetDeal.products.length > 0) {
+            const splitPrice = Math.round((targetDeal.amount || 100000) / targetDeal.products.length)
+            items = targetDeal.products.map(p => ({
+              description: p,
+              qty: 1,
+              unitPrice: splitPrice,
+              total: splitPrice
+            }))
+          }
+
+          return {
+            ...prev,
+            dealId: dealIdParam || prev.dealId,
+            accountId: targetAccount ? targetAccount.id : (prev.accountId || accounts[0]?.id || ''),
+            items: items.length > 0 ? items : prev.items
+          }
+        })
+      }
+    }
+  }, [searchParams, deals, accounts])
 
   // Format currency
   const formatMAD = (amount) => {
@@ -313,14 +350,21 @@ export default function CrmQuotes() {
             </div>
 
             <form onSubmit={handleCreateQuote} className="p-6 space-y-5 overflow-y-auto flex-1">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    Client Enterprise *
+                    {lang === 'ar' ? 'الشركة المستهدفة *' : 'Client Enterprise *'}
                   </label>
                   <select
                     value={newQuoteForm.accountId}
-                    onChange={(e) => setNewQuoteForm({ ...newQuoteForm, accountId: e.target.value })}
+                    onChange={(e) => {
+                      const accId = e.target.value
+                      setNewQuoteForm({
+                        ...newQuoteForm,
+                        accountId: accId,
+                        dealId: deals.find(d => d.accountId === accId)?.id || newQuoteForm.dealId
+                      })
+                    }}
                     className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/15 text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
                   >
                     {accounts.map(acc => (
@@ -331,7 +375,31 @@ export default function CrmQuotes() {
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    Offer Expiry Date
+                    {lang === 'ar' ? 'الصفقة / الفرصة' : 'Associated Opportunity'}
+                  </label>
+                  <select
+                    value={newQuoteForm.dealId}
+                    onChange={(e) => {
+                      const dId = e.target.value
+                      const targetDeal = deals.find(d => d.id === dId)
+                      setNewQuoteForm({
+                        ...newQuoteForm,
+                        dealId: dId,
+                        accountId: targetDeal?.accountId || newQuoteForm.accountId
+                      })
+                    }}
+                    className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/15 text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
+                  >
+                    <option value="">-- {lang === 'ar' ? 'بدون صفقة محددة' : 'No specific deal'} --</option>
+                    {deals.map(deal => (
+                      <option key={deal.id} value={deal.id}>{deal.title} ({formatMAD(deal.amount)})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
+                    {lang === 'ar' ? 'تاريخ انتهاء العرض' : 'Offer Expiry Date'}
                   </label>
                   <input
                     type="date"

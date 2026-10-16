@@ -9,31 +9,108 @@ import {
   AI_AGENTS_DEFINITIONS
 } from '../data/crmMockData'
 import { useAuth } from '../../context/AuthContext'
+import { crmApi } from '../../services/crmApi'
 
 const CrmContext = createContext(null)
 
-const CRM_STORAGE_VERSION = 'v2_en_2026_clean'
+const CRM_STORAGE_VERSION = 'v3_api_connected'
 
-// Auto-migrate stale storage from prior sessions to ensure clean English datasets
-if (typeof window !== 'undefined') {
-  try {
-    const currentVersion = localStorage.getItem('isales_storage_version')
-    if (currentVersion !== CRM_STORAGE_VERSION) {
-      localStorage.removeItem('isales_deals')
-      localStorage.removeItem('isales_leads')
-      localStorage.removeItem('isales_accounts')
-      localStorage.removeItem('isales_quotes')
-      localStorage.removeItem('isales_activities')
-      localStorage.setItem('isales_storage_version', CRM_STORAGE_VERSION)
-      localStorage.setItem('intelligence_sales_lang', 'en')
-    }
-  } catch (err) {
-    console.warn('Storage migration error:', err)
+// Helper Mappers between Laravel API schema and React frontend UI models
+function mapBackendDeal(d) {
+  return {
+    id: String(d.id),
+    title: d.title,
+    accountId: String(d.account_id || d.account?.id || ''),
+    accountName: d.account?.name || 'Enterprise Client',
+    contactName: d.account?.primary_contact || 'Decision Maker',
+    amount: Number(d.amount) || 100000,
+    currency: 'MAD',
+    stage: d.stage || 'leads',
+    probability: Number(d.probability) || 20,
+    expectedClose: d.expected_close_date ? d.expected_close_date.split('T')[0] : '2026-11-30',
+    ownerId: String(d.user_id || ''),
+    ownerName: d.user?.name || 'Karim Tazi',
+    priority: d.amount > 150000 ? 'high' : 'medium',
+    lastActivityDaysAgo: 0,
+    hasInactivityWarning: false,
+    aiRecommendation: d.ai_recommendation || 'Next step: engage client.',
+    products: d.products || ['Intelligence Sales Solution'],
+  }
+}
+
+function mapBackendLead(l) {
+  return {
+    id: String(l.id),
+    companyName: l.company,
+    contactName: l.name,
+    title: 'Director',
+    phone: l.phone || '+212 600 00 00 00',
+    email: l.email || '',
+    source: l.source || 'Website',
+    city: 'Casablanca',
+    score: l.ai_score || 75,
+    temperature: (l.ai_score || 75) > 80 ? 'Hot' : 'Warm',
+    status: l.status || 'New',
+    estimatedValue: 120000,
+    aiNotes: l.score_reason || 'AI scored lead.',
+    createdAt: l.created_at ? l.created_at.split('T')[0] : '2026-10-16',
+  }
+}
+
+function mapBackendAccount(a) {
+  return {
+    id: String(a.id),
+    name: a.name,
+    industry: a.industry || 'B2B Enterprise',
+    city: a.city || 'Casablanca',
+    country: 'Morocco',
+    creditLimit: 250000,
+    revenueLifetime: a.annual_revenue || '45,000,000 MAD',
+    contactName: a.primary_contact || 'Director',
+    contactEmail: a.email || '',
+    contactPhone: a.phone || '',
+    status: a.status || 'Active',
+    dealsCount: a.deals_count || 1,
+  }
+}
+
+function mapBackendQuote(q) {
+  return {
+    id: q.quote_number || `Q-${q.id}`,
+    numericId: q.id,
+    dealId: q.deal_id ? String(q.deal_id) : '',
+    accountId: String(q.account_id || ''),
+    accountName: q.client_company || q.account?.name || 'Enterprise Client',
+    contactName: q.client_name || q.account?.primary_contact || 'Decision Maker',
+    date: q.created_at ? q.created_at.split('T')[0] : '2026-10-16',
+    validUntil: q.expiry_date ? q.expiry_date.split('T')[0] : '2026-11-30',
+    status: q.status || 'Draft',
+    discountPercent: Number(q.discount_percent) || 0,
+    requiresDirectorApproval: Number(q.discount_percent) > 15 && !q.discount_approved,
+    items: q.items && q.items.length > 0 ? q.items.map(it => ({
+      description: it.description,
+      qty: it.qty,
+      unitPrice: it.unit_price,
+      total: it.total
+    })) : [
+      { description: 'Licence Intelligence Sales', qty: 1, unitPrice: q.subtotal, total: q.subtotal }
+    ],
+    subtotal: Number(q.subtotal) || 100000,
+    discountAmount: Number(q.discount_amount) || 0,
+    totalHT: Number(q.subtotal - q.discount_amount) || 100000,
+    tvaAmount: Number(q.tax_amount) || 20000,
+    totalTTC: Number(q.total_amount) || 120000,
+    ownerName: q.user?.name || 'Karim Tazi',
+    publicToken: q.public_token || 'token-marocraft-001',
+    clientSignedAt: q.client_signed_at,
+    clientSignerName: q.client_signer_name,
+    clientPoNumber: q.client_po_number,
   }
 }
 
 export function CrmProvider({ children }) {
   const { currentUser, role } = useAuth()
+  const [isBackendConnected, setIsBackendConnected] = useState(false)
 
   // Deals state
   const [deals, setDeals] = useState(() => {
@@ -88,7 +165,44 @@ export function CrmProvider({ children }) {
   // Filter mode for Rep: 'mine' or 'all'
   const [viewScope, setViewScope] = useState('all')
 
-  // Save to localStorage
+  // --- Sync with Laravel Backend API on Mount ---
+  useEffect(() => {
+    let isMounted = true
+
+    async function syncData() {
+      try {
+        const [dealsRes, leadsRes, accountsRes, quotesRes] = await Promise.all([
+          crmApi.getDeals().catch(() => null),
+          crmApi.getLeads().catch(() => null),
+          crmApi.getAccounts().catch(() => null),
+          crmApi.getQuotes().catch(() => null),
+        ])
+
+        if (!isMounted) return
+
+        if (dealsRes?.data && dealsRes.data.length > 0) {
+          setDeals(dealsRes.data.map(mapBackendDeal))
+          setIsBackendConnected(true)
+        }
+        if (leadsRes?.data && leadsRes.data.length > 0) {
+          setLeads(leadsRes.data.map(mapBackendLead))
+        }
+        if (accountsRes?.data && accountsRes.data.length > 0) {
+          setAccounts(accountsRes.data.map(mapBackendAccount))
+        }
+        if (quotesRes?.data && quotesRes.data.length > 0) {
+          setQuotes(quotesRes.data.map(mapBackendQuote))
+        }
+      } catch (err) {
+        console.warn('Backend sync error:', err.message)
+      }
+    }
+
+    syncData()
+    return () => { isMounted = false }
+  }, [])
+
+  // Save to localStorage as resilient offline cache
   useEffect(() => {
     localStorage.setItem('isales_deals', JSON.stringify(deals))
   }, [deals])
@@ -109,8 +223,8 @@ export function CrmProvider({ children }) {
     localStorage.setItem('isales_activities', JSON.stringify(activities))
   }, [activities])
 
-  // Move deal stage (e.g. in Kanban)
-  const moveDealStage = (dealId, newStage) => {
+  // Move deal stage (e.g. in Kanban Drag & Drop)
+  const moveDealStage = (dealId, newStage, lostReason = null) => {
     setDeals(prev =>
       prev.map(deal => {
         if (deal.id === dealId) {
@@ -127,6 +241,11 @@ export function CrmProvider({ children }) {
         return deal
       })
     )
+
+    // Call Laravel API in background
+    crmApi.updateDealStage(dealId, newStage, lostReason).catch(err => {
+      console.warn('Failed to update stage on API:', err.message)
+    })
   }
 
   // Create new deal
@@ -142,7 +261,7 @@ export function CrmProvider({ children }) {
       stage: dealData.stage || 'leads',
       probability: Number(dealData.probability) || 20,
       expectedClose: dealData.expectedClose || '2026-11-30',
-      ownerId: currentUser?.id || 'usr_rep1',
+      ownerId: currentUser?.id || '1',
       ownerName: currentUser?.name || 'Karim Tazi',
       priority: dealData.priority || 'medium',
       lastActivityDaysAgo: 0,
@@ -151,15 +270,26 @@ export function CrmProvider({ children }) {
       products: dealData.products || ['Intelligence Sales Standard'],
     }
     setDeals(prev => [newDeal, ...prev])
+
+    // Call Laravel API
+    crmApi.createDeal({
+      title: newDeal.title,
+      account_id: isNaN(newDeal.accountId) ? 1 : Number(newDeal.accountId),
+      amount: newDeal.amount,
+      stage: newDeal.stage,
+      probability: newDeal.probability,
+      expected_close_date: newDeal.expectedClose,
+      products: newDeal.products,
+    }).catch(err => console.warn('createDeal API error:', err.message))
+
     return newDeal
   }
 
-  // Convert Lead to Deal & Account (1-Click Workflow)
+  // Convert Lead to Deal & Account
   const convertLeadToDeal = (leadId) => {
     const lead = leads.find(l => l.id === leadId)
     if (!lead) return
 
-    // 1. Create or find Account
     const newAccount = {
       id: `acc_${Date.now()}`,
       name: lead.companyName,
@@ -178,7 +308,6 @@ export function CrmProvider({ children }) {
     }
     setAccounts(prev => [newAccount, ...prev])
 
-    // 2. Create Deal
     const newDeal = {
       id: `deal_${Date.now()}`,
       title: `Commercial Opportunity - ${lead.companyName}`,
@@ -190,7 +319,7 @@ export function CrmProvider({ children }) {
       stage: 'qualification',
       probability: 45,
       expectedClose: '2026-11-20',
-      ownerId: currentUser?.id || 'usr_rep1',
+      ownerId: currentUser?.id || '1',
       ownerName: currentUser?.name || 'Karim Tazi',
       priority: lead.temperature === 'Hot' ? 'high' : 'medium',
       lastActivityDaysAgo: 0,
@@ -200,26 +329,14 @@ export function CrmProvider({ children }) {
     }
     setDeals(prev => [newDeal, ...prev])
 
-    // 3. Mark Lead as Converted
     setLeads(prev =>
       prev.map(l => l.id === leadId ? { ...l, status: 'Converted' } : l)
     )
 
-    // 4. Log Activity
-    const newActivity = {
-      id: `act_${Date.now()}`,
-      type: 'meeting',
-      title: `Lead Converted: ${lead.companyName}`,
-      dealId: newDeal.id,
-      dealTitle: newDeal.title,
-      contactName: lead.contactName,
-      date: new Date().toISOString().split('T')[0],
-      time: '11:00',
-      status: 'completed',
-      notes: `Lead converted by ${currentUser?.name || 'Sales Rep'}. Opportunity injected into pipeline.`,
-      repName: currentUser?.name || 'Sales Rep',
+    // Call API conversion
+    if (!isNaN(leadId)) {
+      crmApi.convertLead(leadId, newDeal.amount, newDeal.title).catch(err => console.warn(err.message))
     }
-    setActivities(prev => [newActivity, ...prev])
 
     return { account: newAccount, deal: newDeal }
   }
@@ -235,7 +352,7 @@ export function CrmProvider({ children }) {
       email: leadData.email || 'contact@prospect.ma',
       source: leadData.source || 'Web Form',
       city: leadData.city || 'Casablanca',
-      score: Math.floor(Math.random() * 30) + 70, // 70-100
+      score: Math.floor(Math.random() * 30) + 70,
       temperature: 'Hot',
       status: 'New',
       estimatedValue: Number(leadData.estimatedValue) || 120000,
@@ -243,15 +360,26 @@ export function CrmProvider({ children }) {
       createdAt: new Date().toISOString().split('T')[0],
     }
     setLeads(prev => [newLead, ...prev])
+
+    // Call API
+    crmApi.createLead({
+      name: newLead.contactName,
+      company: newLead.companyName,
+      email: newLead.email,
+      phone: newLead.phone,
+      source: newLead.source,
+      ai_score: newLead.score,
+    }).catch(err => console.warn('createLead API error:', err.message))
+
     return newLead
   }
 
   // Create Quote
   const addQuote = (quoteData) => {
     const newQuote = {
-      id: `DEV-2026-${String(quotes.length + 1).padStart(3, '0')}`,
-      dealId: quoteData.dealId || 'deal_1',
-      accountId: quoteData.accountId || 'acc_1',
+      id: `Q-2026-${String(quotes.length + 1).padStart(3, '0')}`,
+      dealId: quoteData.dealId || '',
+      accountId: quoteData.accountId || '1',
       accountName: quoteData.accountName || 'Enterprise Client',
       contactName: quoteData.contactName || 'Decision Maker',
       date: new Date().toISOString().split('T')[0],
@@ -268,10 +396,11 @@ export function CrmProvider({ children }) {
       tvaAmount: quoteData.tvaAmount || 30000,
       totalTTC: quoteData.totalTTC || 180000,
       ownerName: currentUser?.name || 'Karim Tazi',
+      publicToken: `token-${Date.now()}`,
     }
     setQuotes(prev => [newQuote, ...prev])
 
-    // Automatically transition Deal to 'proposal' stage if it is in an earlier stage
+    // Automatically transition Deal to 'proposal' stage
     if (quoteData.dealId) {
       setDeals(prevDeals =>
         prevDeals.map(d => {
@@ -289,6 +418,19 @@ export function CrmProvider({ children }) {
       )
     }
 
+    // Call Laravel API
+    crmApi.createQuote({
+      account_id: isNaN(quoteData.accountId) ? 1 : Number(quoteData.accountId),
+      deal_id: isNaN(quoteData.dealId) ? null : Number(quoteData.dealId),
+      discount_percent: Number(quoteData.discountPercent) || 0,
+      expiry_date: quoteData.validUntil || '2026-11-30',
+      items: (quoteData.items || []).map(it => ({
+        description: it.description,
+        qty: Number(it.qty) || 1,
+        unit_price: Number(it.unitPrice) || 50000,
+      }))
+    }).catch(err => console.warn('createQuote API error:', err.message))
+
     return newQuote
   }
 
@@ -297,23 +439,32 @@ export function CrmProvider({ children }) {
     setQuotes(prev =>
       prev.map(q => q.id === quoteId ? { ...q, status: 'Sent', requiresDirectorApproval: false } : q)
     )
+
+    const targetQuote = quotes.find(q => q.id === quoteId)
+    if (targetQuote?.numericId) {
+      crmApi.approveQuoteDiscount(targetQuote.numericId).catch(err => console.warn(err.message))
+    }
   }
 
-  // Accept Quote -> Triggers post-sale workflow and marks Deal as Won!
-  const acceptQuote = (quoteId) => {
+  // Accept Quote -> Triggers post-sale workflow and marks Deal as Won
+  const acceptQuote = (quoteId, signerInfo = {}) => {
     const quote = quotes.find(q => q.id === quoteId)
     if (!quote) return
 
     setQuotes(prev =>
-      prev.map(q => q.id === quoteId ? { ...q, status: 'Accepted' } : q)
+      prev.map(q => q.id === quoteId ? {
+        ...q,
+        status: 'Accepted',
+        clientSignerName: signerInfo.signerName || quote.contactName,
+        clientPoNumber: signerInfo.poNumber || `BC-2026-${Math.floor(1000 + Math.random() * 9000)}`
+      } : q)
     )
 
-    // Also update associated deal if exists
     if (quote.dealId) {
       moveDealStage(quote.dealId, 'won')
     }
 
-    // Log Activity for post-sale trigger
+    // Log Activity
     const newAct = {
       id: `act_${Date.now()}`,
       type: 'ai_alert',
@@ -328,54 +479,63 @@ export function CrmProvider({ children }) {
       repName: currentUser?.name || 'System',
     }
     setActivities(prev => [newAct, ...prev])
-  }
 
-  // Execute AI Follow-up (Resets 7-day inactivity)
-  const executeFollowUp = (dealId, channel = 'WhatsApp') => {
-    setDeals(prev =>
-      prev.map(d => {
-        if (d.id === dealId) {
-          return {
-            ...d,
-            lastActivityDaysAgo: 0,
-            hasInactivityWarning: false,
-            aiRecommendation: `${channel} follow-up sent successfully. Next check-in in 5 days.`,
-          }
-        }
-        return d
-      })
-    )
-
-    // Add activity
-    const deal = deals.find(d => d.id === dealId)
-    const newAct = {
-      id: `act_${Date.now()}`,
-      type: channel === 'WhatsApp' ? 'call' : 'email',
-      title: `Automated ${channel} Follow-Up (7-Day Rule)`,
-      dealId: deal?.id || '',
-      dealTitle: deal?.title || 'Opportunity',
-      contactName: deal?.contactName || 'Contact',
-      date: new Date().toISOString().split('T')[0],
-      time: 'Just now',
-      status: 'completed',
-      notes: `Follow-up message sent with human-in-the-loop approval. Deal reactivated.`,
-      repName: currentUser?.name || 'Sales Rep',
+    // Call Laravel API
+    if (quote.numericId) {
+      crmApi.recordQuoteAcceptance(quote.numericId, {
+        signerName: signerInfo.signerName || quote.contactName,
+        poNumber: signerInfo.poNumber || `BC-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+        notes: signerInfo.notes || 'Accepted via CRM interface',
+      }).catch(err => console.warn(err.message))
     }
-    setActivities(prev => [newAct, ...prev])
   }
 
-  // Log new activity
+  // Execute AI Autonomous Follow-Up Action
+  const executeFollowUp = (dealId, actionType) => {
+    const deal = deals.find(d => d.id === dealId)
+    if (!deal) return
+
+    const newActivity = {
+      id: `act_${Date.now()}`,
+      type: actionType,
+      title: `Autonomous ${actionType.toUpperCase()}: ${deal.title}`,
+      dealId: deal.id,
+      dealTitle: deal.title,
+      contactName: deal.contactName,
+      date: new Date().toISOString().split('T')[0],
+      time: 'Now',
+      status: 'completed',
+      notes: `Autonomous AI trigger successfully dispatched. Response tracking initialized.`,
+      repName: 'Autonomous AI Engine',
+    }
+    setActivities(prev => [newActivity, ...prev])
+
+    setDeals(prev =>
+      prev.map(d =>
+        d.id === dealId
+          ? {
+              ...d,
+              lastActivityDaysAgo: 0,
+              hasInactivityWarning: false,
+              probability: Math.min(d.probability + 5, 95),
+            }
+          : d
+      )
+    )
+  }
+
+  // Add custom activity
   const addActivity = (actData) => {
     const newAct = {
       id: `act_${Date.now()}`,
       type: actData.type || 'call',
       title: actData.title,
       dealId: actData.dealId || '',
-      dealTitle: actData.dealTitle || '',
-      contactName: actData.contactName || '',
+      dealTitle: actData.dealTitle || 'Opportunity',
+      contactName: actData.contactName || 'Lead',
       date: actData.date || new Date().toISOString().split('T')[0],
       time: actData.time || '10:00',
-      status: 'upcoming',
+      status: actData.status || 'pending',
       notes: actData.notes || '',
       repName: currentUser?.name || 'Commercial',
     }
@@ -383,24 +543,13 @@ export function CrmProvider({ children }) {
     return newAct
   }
 
-  // Reset to initial mock data (English)
+  // Reset to initial mock data
   const resetData = () => {
     setDeals(INITIAL_DEALS)
     setLeads(INITIAL_LEADS)
     setAccounts(INITIAL_ACCOUNTS)
     setQuotes(INITIAL_QUOTES)
     setActivities(INITIAL_ACTIVITIES)
-    try {
-      localStorage.setItem('isales_deals', JSON.stringify(INITIAL_DEALS))
-      localStorage.setItem('isales_leads', JSON.stringify(INITIAL_LEADS))
-      localStorage.setItem('isales_accounts', JSON.stringify(INITIAL_ACCOUNTS))
-      localStorage.setItem('isales_quotes', JSON.stringify(INITIAL_QUOTES))
-      localStorage.setItem('isales_activities', JSON.stringify(INITIAL_ACTIVITIES))
-      localStorage.setItem('isales_storage_version', CRM_STORAGE_VERSION)
-      localStorage.setItem('intelligence_sales_lang', 'en')
-    } catch (e) {
-      console.warn('resetData error', e)
-    }
   }
 
   return (
@@ -415,6 +564,7 @@ export function CrmProvider({ children }) {
         aiAgents: AI_AGENTS_DEFINITIONS,
         viewScope,
         setViewScope,
+        isBackendConnected,
         moveDealStage,
         addDeal,
         convertLeadToDeal,

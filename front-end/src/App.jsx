@@ -36,6 +36,7 @@ import CrmActivities from './crm/pages/CrmActivities'
 import CrmAiAgents from './crm/pages/CrmAiAgents'
 import CrmTeam from './crm/pages/CrmTeam'
 import CrmSettings from './crm/pages/CrmSettings'
+import ClientQuotePortal from './pages/ClientQuotePortal'
 
 function LandingPage() {
   const [partnerModalOpen, setPartnerModalOpen] = useState(false)
@@ -129,6 +130,9 @@ export default function App() {
                   <Route path="team" element={<CrmTeam />} />
                   <Route path="settings" element={<CrmSettings />} />
                 </Route>
+
+                {/* 4. Public Client Quote & Signature Portal (No login required) */}
+                <Route path="/portal/quote/:token" element={<ClientQuotePortal />} />
 
                 {/* Catch-all redirect */}
                 <Route path="*" element={<Navigate to="/" replace />} />

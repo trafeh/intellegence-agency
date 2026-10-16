@@ -18,7 +18,8 @@ import {
   Trash2,
   X,
   Send,
-  ShieldCheck
+  ShieldCheck,
+  ExternalLink
 } from 'lucide-react'
 
 export default function CrmQuotes() {
@@ -303,24 +304,36 @@ export default function CrmQuotes() {
                           <Eye className="h-3.5 w-3.5" />
                         </button>
 
+                        {/* Public Client Portal Link */}
+                        <a
+                          href={`/portal/quote/${quote.publicToken || quote.public_token || 'token-marocraft-001'}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 font-bold text-[10px] shadow-sm transition-all"
+                          title={lang === 'ar' ? 'فتح بوابة الزبون للتوقيع المباشر' : 'Open client portal for direct e-signature'}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          <span>{lang === 'ar' ? 'رابط الزبون' : 'Client Link'}</span>
+                        </a>
+
                         {/* Director Approval Button */}
                         {isPending && role === 'director' && (
                           <button
                             onClick={() => handleApprove(quote.id)}
-                            className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] shadow-sm"
+                            className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] shadow-sm transition-all"
                           >
                             Approve Discount
                           </button>
                         )}
 
-                        {/* Accept Quote -> Triggers post-sale */}
+                        {/* Record Client Decision / Accord */}
                         {!isAccepted && (
                           <button
                             onClick={() => handleAccept(quote.id)}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] shadow-sm"
-                            title="Sign & Accept Quote"
+                            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] shadow-sm transition-all"
+                            title={lang === 'ar' ? 'تسجيل موافقة الزبون واستلام الـ Bon de commande' : 'Log client agreement / PO received'}
                           >
-                            Accept Quote
+                            {lang === 'ar' ? 'تسجيل موافقة الكليان' : 'Log Client Accord'}
                           </button>
                         )}
                       </div>

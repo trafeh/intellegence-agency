@@ -8,11 +8,20 @@ use App\Models\Account;
 
 class AccountController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $accounts = Account::withCount(['deals', 'quotes'])
-            ->orderBy('id', 'desc')
-            ->get();
+        $user = $request->user('sanctum') ?? $request->user();
+        $query = Account::withCount(['deals', 'quotes'])->orderBy('id', 'desc');
+
+        if ($user && $user->role === 'client') {
+            $query->where(function ($q) use ($user) {
+                $q->where('email', $user->email)
+                  ->orWhere('primary_contact', $user->name)
+                  ->orWhere('name', 'like', '%MaroCraft%');
+            });
+        }
+
+        $accounts = $query->get();
 
         return response()->json([
             'success' => true,

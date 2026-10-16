@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { INITIAL_USERS } from '../crm/data/crmMockData'
+import { crmApi } from '../services/crmApi'
 
 const AuthContext = createContext(null)
 
@@ -11,12 +12,12 @@ export function AuthProvider({ children }) {
     } catch (e) {
       console.error(e)
     }
-    // Default to Director so user gets full experience out of the box or starts logged out
-    return null
+    // Default to Admin so the app is immediately usable
+    return INITIAL_USERS[0]
   })
 
   const isAuthenticated = Boolean(currentUser)
-  const role = currentUser?.role || 'director'
+  const role = currentUser?.role || 'admin'
 
   useEffect(() => {
     if (currentUser) {
@@ -26,23 +27,46 @@ export function AuthProvider({ children }) {
     }
   }, [currentUser])
 
-  // Quick Demo Login
-  const quickDemoLogin = (targetRole = 'director') => {
+  // Quick Demo Login (admin, manager, rep, client)
+  const quickDemoLogin = (targetRole = 'admin') => {
     const user = INITIAL_USERS.find(u => u.role === targetRole) || INITIAL_USERS[0]
     setCurrentUser(user)
     return user
   }
 
-  // Regular login
-  const login = (email, password) => {
+  // Regular login with API support + local fallback
+  const login = async (email, password) => {
+    // Try live Laravel API first
+    try {
+      const apiRes = await crmApi.login(email, password)
+      if (apiRes?.user) {
+        const fullUser = {
+          ...apiRes.user,
+          initials: apiRes.user.name.split(' ').map(n => n[0]).join('').slice(0, 2),
+        }
+        setCurrentUser(fullUser)
+        return { success: true, user: fullUser }
+      }
+    } catch {
+      // Fallback to local user matching
+    }
+
     const matched = INITIAL_USERS.find(u => u.email.toLowerCase() === email.toLowerCase().trim())
     if (matched) {
       setCurrentUser(matched)
       return { success: true, user: matched }
     }
-    // If not matched by exact email, allow any demo password and assign by role inference
-    const isDir = email.toLowerCase().includes('admin') || email.toLowerCase().includes('director') || email.toLowerCase().includes('manager')
-    const fallbackUser = isDir ? INITIAL_USERS[0] : INITIAL_USERS[1]
+
+    // Role inference fallback
+    const isClient = email.toLowerCase().includes('client') || email.toLowerCase().includes('marocraft')
+    const isRep = email.toLowerCase().includes('rep') || email.toLowerCase().includes('commercial')
+    const isManager = email.toLowerCase().includes('manager')
+
+    let fallbackUser = INITIAL_USERS[0]
+    if (isClient) fallbackUser = INITIAL_USERS[4]
+    else if (isRep) fallbackUser = INITIAL_USERS[2]
+    else if (isManager) fallbackUser = INITIAL_USERS[1]
+
     const customUser = {
       ...fallbackUser,
       email,
@@ -52,9 +76,8 @@ export function AuthProvider({ children }) {
     return { success: true, user: customUser }
   }
 
-  // Switch Role inside CRM (Director ⇄ Rep)
+  // Switch Role inside CRM (Admin ⇄ Manager ⇄ Rep ⇄ Client)
   const switchRole = (newRole) => {
-    if (newRole === role) return
     const user = INITIAL_USERS.find(u => u.role === newRole)
     if (user) {
       setCurrentUser(user)
@@ -62,6 +85,7 @@ export function AuthProvider({ children }) {
   }
 
   const logout = () => {
+    crmApi.logout().catch(() => {})
     setCurrentUser(null)
   }
 

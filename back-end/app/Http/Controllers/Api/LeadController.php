@@ -11,13 +11,31 @@ use App\Models\Deal;
 class LeadController extends Controller
 {
     /**
-     * List all leads with user assignment and account
+     * List leads with user assignment and account - Scoped by Role
      */
-    public function index()
+    public function index(Request $request)
     {
-        $leads = Lead::with(['user', 'account'])
-            ->orderBy('ai_score', 'desc')
-            ->get();
+        $user = $request->user('sanctum') ?? $request->user();
+
+        // Clients have zero access to internal prospecting leads
+        if ($user && $user->role === 'client') {
+            return response()->json([
+                'success' => true,
+                'data' => []
+            ]);
+        }
+
+        $query = Lead::with(['user', 'account'])->orderBy('ai_score', 'desc');
+
+        // Reps see their assigned leads or unassigned inbound leads
+        if ($user && $user->role === 'rep') {
+            $query->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                  ->orWhereNull('user_id');
+            });
+        }
+
+        $leads = $query->get();
 
         return response()->json([
             'success' => true,

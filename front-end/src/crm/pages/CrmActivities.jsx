@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useCrm } from '../context/CrmContext'
 import { useAuth } from '../../context/AuthContext'
 import { useLanguage } from '../../context/LanguageContext'
@@ -17,34 +17,130 @@ import {
   MessageSquare,
   ChevronRight,
   X,
-  ShieldCheck
+  ShieldCheck,
+  FileText
 } from 'lucide-react'
 
 export default function CrmActivities() {
   const { activities, deals, executeFollowUp, addActivity } = useCrm()
-  const { currentUser } = useAuth()
+  const { currentUser, role } = useAuth()
   const { lang } = useLanguage()
 
-  const [activeTab, setActiveTab] = useState('dormant') // 'dormant' | 'all'
+  const [activeTab, setActiveTab] = useState(role === 'client' ? 'all' : 'dormant') // 'dormant' | 'all'
   const [isLogOpen, setIsLogOpen] = useState(false)
   const [successToast, setSuccessToast] = useState(null)
 
-  // Follow-up generator state for dormant deals
-  const dormantDeals = deals.filter(d => d.hasInactivityWarning || d.lastActivityDaysAgo >= 7)
+  // 1. CLIENT TIMELINE VIEW
+  if (role === 'client') {
+    const clientActivities = [
+      {
+        id: 'cl_1',
+        title: 'Validation & Signature Électronique Initée',
+        date: '2026-10-16',
+        time: '18:30',
+        type: 'meeting',
+        notes: 'Devis Q-2026-001 (125 000 MAD TTC) généré avec succès pour MaroCraft Industries. Lien de signature sécurisé transmis.',
+        repName: 'Yassine Mansouri'
+      },
+      {
+        id: 'cl_2',
+        title: 'Réunion de Cadrage Technique & Architecture',
+        date: '2026-10-12',
+        time: '14:00',
+        type: 'call',
+        notes: 'Alignement sur les flux WhatsApp Business, synchronisation ERP et formation des équipes de vente MaroCraft.',
+        repName: 'Yassine Mansouri'
+      },
+      {
+        id: 'cl_3',
+        title: 'Émission de la Proposition Commerciale Initiale',
+        date: '2026-10-08',
+        time: '11:15',
+        type: 'call',
+        notes: 'Présentation des 7 Agents IA de Vente et remise commerciale stratégique de 10% accordée.',
+        repName: 'Yassine Mansouri'
+      }
+    ]
+
+    return (
+      <div className="space-y-6 w-full max-w-5xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-navy-900 p-6 rounded-lg border border-slate-200 dark:border-white/10 shadow-sm">
+          <div>
+            <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-brand-600" />
+              <span>{lang === 'ar' ? 'سجل مراحل وتفاعلات المشروع' : 'Project Timeline & Engagement History'}</span>
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              {lang === 'ar'
+                ? 'التاريخ الزمني لجميع الاجتماعات، العروض، ومحطات تسليم المشروع'
+                : 'Auditable timeline of scoping meetings, proposals, deliverables, and milestone sign-offs'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 text-xs font-bold border border-emerald-500/20 flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>Partenaire MaroCraft Industries</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-navy-900 rounded-lg border border-slate-200 dark:border-white/10 shadow-sm p-6 space-y-4">
+          <div className="divide-y divide-slate-100 dark:divide-white/5">
+            {clientActivities.map((act) => (
+              <div key={act.id} className="py-4 flex items-start gap-4">
+                <div className="h-10 w-10 rounded-xl bg-brand-500/10 text-brand-600 flex items-center justify-center shrink-0">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                      {act.title}
+                    </h4>
+                    <span className="text-xs text-slate-400 font-medium">
+                      {act.date} à {act.time}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    {act.notes}
+                  </p>
+                  <div className="text-[11px] text-slate-400 pt-1">
+                    Intervenant : <strong className="text-brand-600">{act.repName}</strong> (Senior Strategic Rep)
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 2. INTERNAL STAFF: Scope deals by role
+  const relevantDeals = role === 'rep'
+    ? deals.filter(d =>
+        d.ownerId === currentUser?.id ||
+        d.ownerName?.toLowerCase().includes(currentUser?.name?.toLowerCase() || '') ||
+        d.user_id === currentUser?.id
+      )
+    : deals
+
+  // Follow-up generator state for scoped dormant deals
+  const dormantDeals = relevantDeals.filter(d => d.hasInactivityWarning || d.lastActivityDaysAgo >= 7)
 
   // Form for new activity
   const [activityForm, setActivityForm] = useState({
     type: 'call',
     title: '',
-    dealId: deals[0]?.id || '',
+    dealId: relevantDeals[0]?.id || '',
     contactName: '',
     date: new Date().toISOString().split('T')[0],
     time: '14:30',
     notes: '',
   })
 
-  // Sample drafted message template
-  const [generatedDrafts, setGeneratedDrafts] = useState({
+  // Sample drafted message templates
+  const [generatedDrafts] = useState({
     deal_2: "Dear Meryem, I hope this message finds you well. Following up on our discussion regarding the Intelligence Sales framework, have you had an opportunity to review quote # DEV-2026-088? We are available to organize a technical alignment demo at your convenience.",
     deal_3: "Dear Mr. Bennani, I am following up regarding the 50 field licenses deployment scoping at LabelVie. Would you be available for a brief coordination session this Thursday at 11:00 AM?",
   })
@@ -59,7 +155,7 @@ export default function CrmActivities() {
     e.preventDefault()
     if (!activityForm.title) return
 
-    const deal = deals.find(d => d.id === activityForm.dealId)
+    const deal = relevantDeals.find(d => d.id === activityForm.dealId) || deals.find(d => d.id === activityForm.dealId)
     addActivity({
       type: activityForm.type,
       title: activityForm.title,
@@ -75,7 +171,7 @@ export default function CrmActivities() {
     setActivityForm({
       type: 'call',
       title: '',
-      dealId: deals[0]?.id || '',
+      dealId: relevantDeals[0]?.id || '',
       contactName: '',
       date: new Date().toISOString().split('T')[0],
       time: '14:30',
@@ -99,17 +195,28 @@ export default function CrmActivities() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-navy-900 p-6 rounded-lg border border-slate-200 dark:border-white/10 shadow-sm">
         <div>
           <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <span>{lang === 'ar' ? 'محرك المتابعة والأنشطة التجارية' : 'Follow-Up Engine & Activities'}</span>
+            <span>
+              {role === 'rep'
+                ? 'My Follow-Up Engine & Activities'
+                : (lang === 'ar' ? 'محرك المتابعة والأنشطة التجارية' : 'Follow-Up Engine & Activities')}
+            </span>
             {dormantDeals.length > 0 && (
               <span className="px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 text-xs font-bold border border-rose-500/30 animate-pulse">
                 {dormantDeals.length} {lang === 'ar' ? 'تنبيه ركود (7 أيام)' : '7d alerts'}
               </span>
             )}
+            {role === 'rep' && (
+              <span className="px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-600/10 text-blue-600 text-[10px] font-bold border border-blue-500/20">
+                Personal Pipeline Scope
+              </span>
+            )}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {lang === 'ar'
-              ? 'تطبيق قاعدة الـ 7 أيام الصارمة: لا صفقات منسية بعد اليوم مع صياغة الرسائل آلياً'
-              : 'Strict enforcement of the 7-day dormancy rule: zero forgotten deals and automated re-engagement'}
+            {role === 'rep'
+              ? 'Enforcing the 7-day rule for your assigned opportunities: AI pre-drafted WhatsApp relances'
+              : (lang === 'ar'
+                ? 'تطبيق قاعدة الـ 7 أيام الصارمة: لا صفقات منسية بعد اليوم مع صياغة الرسائل آلياً'
+                : 'Strict enforcement of the 7-day dormancy rule: zero forgotten deals and automated re-engagement')}
           </p>
         </div>
 
@@ -346,7 +453,7 @@ export default function CrmActivities() {
                     onChange={(e) => setActivityForm({ ...activityForm, dealId: e.target.value })}
                     className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/15 text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
                   >
-                    {deals.map(d => (
+                    {relevantDeals.map(d => (
                       <option key={d.id} value={d.id}>{d.title} ({d.accountName})</option>
                     ))}
                   </select>

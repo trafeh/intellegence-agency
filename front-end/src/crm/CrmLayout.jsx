@@ -79,75 +79,120 @@ export default function CrmLayout() {
     setMobileSidebarOpen(false)
   }, [location.pathname])
 
-  const navItems = [
-    {
-      to: '/crm/dashboard',
-      labelEn: 'Dashboard',
-      labelFr: 'Tableau de bord',
-      labelAr: 'لوحة التحكم',
-      icon: LayoutDashboard,
-    },
-    {
-      to: '/crm/pipeline',
-      labelEn: 'Deals Pipeline',
-      labelFr: 'Pipeline & Kanban',
-      labelAr: 'مسار الصفقات',
-      icon: Kanban,
-      badge: deals.filter(d => d.stage !== 'won' && d.stage !== 'lost').length,
-    },
-    {
-      to: '/crm/leads',
-      labelEn: 'Leads & Scoring',
-      labelFr: 'Prospects (Scoring IA)',
-      labelAr: 'العملاء المحتملون',
-      icon: Target,
-      badge: newLeadsCount > 0 ? newLeadsCount : null,
-      badgeColor: 'bg-emerald-500 text-white',
-    },
-    {
-      to: '/crm/accounts',
-      labelEn: 'Accounts & Contacts',
-      labelFr: 'Comptes & Entreprises',
-      labelAr: 'الشركات والعملاء',
-      icon: Building2,
-    },
-    {
-      to: '/crm/quotes',
-      labelEn: 'Quotations & Offers',
-      labelFr: 'Devis & Propositions',
-      labelAr: 'عروض الأسعار',
-      icon: FileText,
-      badge: pendingQuotesCount > 0 ? pendingQuotesCount : null,
-      badgeColor: 'bg-amber-500 text-white animate-pulse',
-    },
-    {
-      to: '/crm/activities',
-      labelEn: 'Follow-Up Engine',
-      labelFr: 'Moteur de Relance (7j)',
-      labelAr: 'محرك المتابعة (7 أيام)',
-      icon: RefreshCw,
-      badge: dormantDealsCount > 0 ? `${dormantDealsCount} alerte${dormantDealsCount > 1 ? 's' : ''}` : null,
-      badgeColor: 'bg-rose-500 text-white animate-pulse',
-    },
-    {
-      to: '/crm/ai-agents',
-      labelEn: '7 Sales AI Agents',
-      labelFr: '7 Agents IA de Vente',
-      labelAr: '7 وكلاء ذكاء اصطناعي',
-      icon: BrainCircuit,
-      badge: 'PRO',
-      badgeColor: 'bg-brand-600 text-white',
-    },
-    ...(role === 'director' ? [
+  // Role-based Navigation Items
+  let navItems = []
+  if (role === 'client') {
+    navItems = [
       {
-        to: '/crm/team',
-        labelEn: 'Sales Team & Quotas',
-        labelFr: 'Équipe & Objectifs',
-        labelAr: 'الفريق والأهداف',
-        icon: Users,
-      }
-    ] : [])
-  ]
+        to: '/crm/dashboard',
+        labelEn: 'Client Space',
+        labelFr: 'Mon Espace Client',
+        labelAr: 'فضاء الزبون',
+        icon: LayoutDashboard,
+      },
+      {
+        to: '/crm/quotes',
+        labelEn: 'My Quotations & Offers',
+        labelFr: 'Mes Devis & Offres',
+        labelAr: 'عروضي والصفقات',
+        icon: FileText,
+        badge: quotes.filter(q => q.status !== 'Accepted').length > 0 ? `${quotes.filter(q => q.status !== 'Accepted').length} en cours` : null,
+        badgeColor: 'bg-brand-600 text-white',
+      },
+      {
+        to: '/crm/activities',
+        labelEn: 'Project Timeline',
+        labelFr: 'Historique & Jalons',
+        labelAr: 'سجل المشروع',
+        icon: RefreshCw,
+      },
+    ]
+  } else {
+    // Internal Staff Roles: Rep, Manager, Admin
+    navItems = [
+      {
+        to: '/crm/dashboard',
+        labelEn: role === 'rep' ? 'My Quota Dashboard' : 'Executive Dashboard',
+        labelFr: role === 'rep' ? 'Mes Objectifs & Ventes' : 'Tableau de bord',
+        labelAr: role === 'rep' ? 'أهدافي ومبيعاتي' : 'لوحة التحكم العامة',
+        icon: LayoutDashboard,
+      },
+      {
+        to: '/crm/pipeline',
+        labelEn: role === 'rep' ? 'My Pipeline (Deals)' : 'Deals Pipeline',
+        labelFr: role === 'rep' ? 'Mon Portefeuille Deals' : 'Pipeline & Kanban',
+        labelAr: role === 'rep' ? 'صفقاتي الخاصة' : 'مسار الصفقات',
+        icon: Kanban,
+        badge: (role === 'rep'
+          ? deals.filter(d => (d.ownerId === currentUser?.id || d.ownerName === currentUser?.name) && d.stage !== 'won' && d.stage !== 'lost').length
+          : deals.filter(d => d.stage !== 'won' && d.stage !== 'lost').length
+        ),
+      },
+      {
+        to: '/crm/leads',
+        labelEn: role === 'rep' ? 'My Leads' : 'Leads & Scoring',
+        labelFr: role === 'rep' ? 'Mes Prospects' : 'Prospects (Scoring IA)',
+        labelAr: role === 'rep' ? 'عملائي المحتملين' : 'العملاء المحتملون',
+        icon: Target,
+        badge: newLeadsCount > 0 ? newLeadsCount : null,
+        badgeColor: 'bg-emerald-500 text-white',
+      },
+      {
+        to: '/crm/accounts',
+        labelEn: 'Accounts & Contacts',
+        labelFr: 'Comptes & Entreprises',
+        labelAr: 'الشركات والعملاء',
+        icon: Building2,
+      },
+      {
+        to: '/crm/quotes',
+        labelEn: role === 'rep' ? 'My Quotes' : 'Quotations & Offers',
+        labelFr: role === 'rep' ? 'Mes Devis Générés' : 'Devis & Propositions',
+        labelAr: role === 'rep' ? 'عروضي التجارية' : 'عروض الأسعار',
+        icon: FileText,
+        badge: pendingQuotesCount > 0 ? pendingQuotesCount : null,
+        badgeColor: 'bg-amber-500 text-white animate-pulse',
+      },
+      {
+        to: '/crm/activities',
+        labelEn: 'Follow-Up Engine',
+        labelFr: 'Moteur de Relance (7j)',
+        labelAr: 'محرك المتابعة (7 أيام)',
+        icon: RefreshCw,
+        badge: dormantDealsCount > 0 ? `${dormantDealsCount} alerte${dormantDealsCount > 1 ? 's' : ''}` : null,
+        badgeColor: 'bg-rose-500 text-white animate-pulse',
+      },
+      {
+        to: '/crm/ai-agents',
+        labelEn: '7 Sales AI Agents',
+        labelFr: '7 Agents IA de Vente',
+        labelAr: '7 وكلاء ذكاء اصطناعي',
+        icon: BrainCircuit,
+        badge: 'PRO',
+        badgeColor: 'bg-brand-600 text-white',
+      },
+      // Team Management: Accessible by Manager and Admin only!
+      ...((role === 'admin' || role === 'manager' || role === 'director') ? [
+        {
+          to: '/crm/team',
+          labelEn: 'Sales Team & Quotas',
+          labelFr: 'Équipe & Objectifs',
+          labelAr: 'الفريق والأهداف',
+          icon: Users,
+        }
+      ] : []),
+      // System Settings: Accessible by Admin only!
+      ...((role === 'admin' || role === 'director') ? [
+        {
+          to: '/crm/settings',
+          labelEn: 'System Settings',
+          labelFr: 'Paramètres Système',
+          labelAr: 'إعدادات النظام',
+          icon: Settings,
+        }
+      ] : [])
+    ]
+  }
 
   const getLabel = (item) => {
     if (lang === 'ar') return item.labelAr
@@ -407,10 +452,13 @@ export default function CrmLayout() {
             >
               <div className="text-right rtl:text-left hidden sm:flex flex-col">
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-tight">
-                  {currentUser?.name || 'Amine Benzekri'}
+                  {currentUser?.name || 'Karim Tazi'}
                 </span>
                 <span className="text-[10px] text-slate-400 capitalize">
-                  {role === 'director' ? 'Sales Director' : 'Account Exec'}
+                  {role === 'admin' || role === 'director' ? '👑 Admin / CRO' :
+                   role === 'manager' ? '👔 Sales Manager' :
+                   role === 'client' ? '🏢 Espace Client' :
+                   '🎯 Sales Rep'}
                 </span>
               </div>
               <div className="h-8 w-8 rounded-full bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-300 font-bold text-xs flex items-center justify-center border border-brand-500/30">
@@ -424,42 +472,87 @@ export default function CrmLayout() {
                   <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{currentUser?.name}</p>
                   <p className="text-[11px] text-slate-400">{currentUser?.email}</p>
                   <div className="mt-1.5 flex items-center gap-1.5">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${role === 'director' ? 'bg-brand-500/10 text-brand-600' : 'bg-emerald-500/10 text-emerald-600'
-                      }`}>
-                      {role === 'director' ? '👑 Executive Director' : '🎯 Commercial Rep'}
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      role === 'admin' || role === 'director' ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300' :
+                      role === 'manager' ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' :
+                      role === 'client' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' :
+                      'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                    }`}>
+                      {role === 'admin' || role === 'director' ? '👑 Admin / Director' :
+                       role === 'manager' ? '👔 Sales Manager' :
+                       role === 'client' ? '🏢 Espace Client' :
+                       '🎯 Commercial Rep'}
                     </span>
                   </div>
                 </div>
 
                 <div className="py-1">
                   <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Switch Condition
+                    {lang === 'ar' ? 'تبديل الدور (تجربة الصلاحيات)' : 'Switch Role (Test RBAC)'}
                   </div>
+
+                  {/* 1. Admin */}
                   <button
                     onClick={() => {
-                      switchRole('director')
+                      switchRole('admin')
                       setUserMenuOpen(false)
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors ${role === 'director'
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs transition-colors ${
+                      (role === 'admin' || role === 'director')
                         ? 'bg-brand-50 dark:bg-brand-600/15 text-brand-600 font-bold'
                         : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5'
-                      }`}
+                    }`}
                   >
-                    <span>👑 {lang === 'ar' ? 'وضع الإدارة / المدير' : 'Sales Director View'}</span>
-                    {role === 'director' && <CheckCircle2 className="h-3.5 w-3.5 text-brand-600" />}
+                    <span>👑 {lang === 'ar' ? 'المدير العام (Karim Tazi)' : 'Admin / CRO (Karim Tazi)'}</span>
+                    {(role === 'admin' || role === 'director') && <CheckCircle2 className="h-3.5 w-3.5 text-brand-600" />}
                   </button>
+
+                  {/* 2. Manager */}
+                  <button
+                    onClick={() => {
+                      switchRole('manager')
+                      setUserMenuOpen(false)
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs transition-colors ${
+                      role === 'manager'
+                        ? 'bg-blue-50 dark:bg-blue-600/15 text-blue-600 font-bold'
+                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5'
+                    }`}
+                  >
+                    <span>👔 {lang === 'ar' ? 'مدير المبيعات (Sofia Benali)' : 'Sales Manager (Sofia)'}</span>
+                    {role === 'manager' && <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />}
+                  </button>
+
+                  {/* 3. Rep */}
                   <button
                     onClick={() => {
                       switchRole('rep')
                       setUserMenuOpen(false)
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-colors ${role === 'rep'
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs transition-colors ${
+                      role === 'rep'
                         ? 'bg-emerald-50 dark:bg-emerald-600/15 text-emerald-600 font-bold'
                         : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5'
-                      }`}
+                    }`}
                   >
-                    <span>🎯 {lang === 'ar' ? 'وضع البائع / المندوب' : 'Sales Rep View'}</span>
+                    <span>🎯 {lang === 'ar' ? 'بائع / مندوب (Yassine)' : 'Sales Rep (Yassine)'}</span>
                     {role === 'rep' && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />}
+                  </button>
+
+                  {/* 4. Client */}
+                  <button
+                    onClick={() => {
+                      switchRole('client')
+                      setUserMenuOpen(false)
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs transition-colors ${
+                      role === 'client'
+                        ? 'bg-amber-50 dark:bg-amber-600/15 text-amber-600 font-bold'
+                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5'
+                    }`}
+                  >
+                    <span>🏢 {lang === 'ar' ? 'الزبون (Omar Kabbaj)' : 'Client (Omar Kabbaj)'}</span>
+                    {role === 'client' && <CheckCircle2 className="h-3.5 w-3.5 text-amber-600" />}
                   </button>
                 </div>
 

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useCrm } from '../context/CrmContext'
 import { useLanguage } from '../../context/LanguageContext'
@@ -13,14 +14,41 @@ import {
   Mail,
   CheckCircle2,
   ChevronRight,
-  User
+  User,
+  ShieldAlert
 } from 'lucide-react'
 import { formatCompactMAD } from '../data/crmMockData'
 
 export default function CrmTeam() {
-  const { users } = useAuth()
+  const { users, role } = useAuth()
   const { deals } = useCrm()
   const { lang } = useLanguage()
+  const navigate = useNavigate()
+
+  // Guard: Sales Team management is restricted to Manager, Admin, Director
+  if (role === 'rep' || role === 'client') {
+    return (
+      <div className="p-12 text-center max-w-xl mx-auto space-y-4 bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm mt-8">
+        <div className="h-16 w-16 mx-auto rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+          <ShieldAlert className="h-8 w-8" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+          {lang === 'ar' ? 'منطقة مخصصة لإدارة المبيعات' : 'Sales Management Area'}
+        </h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+          {lang === 'ar'
+            ? 'الاطلاع على أهداف الفريق، نسب الإنجاز، وهياكل العمولات مخصص لمدير المبيعات والإدارة العامة.'
+            : 'Access to sales team quotas, individual attainment comparisons, and commission structures is restricted to Sales Managers and Executive Administrators.'}
+        </p>
+        <button
+          onClick={() => navigate('/crm/dashboard')}
+          className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all shadow-md shadow-brand-600/30"
+        >
+          {lang === 'ar' ? 'العودة إلى لوحة التحكم' : 'Return to My Dashboard'}
+        </button>
+      </div>
+    )
+  }
 
   // Format currency
   const formatMAD = (amount) => {
@@ -52,7 +80,7 @@ export default function CrmTeam() {
         </div>
       </div>
 
-      {/* Global Quota Overview Card - Clean theme style without loud gradient */}
+      {/* Global Quota Overview Card */}
       <div className="p-6 rounded-lg bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/10 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -165,4 +193,3 @@ export default function CrmTeam() {
     </div>
   )
 }
-

@@ -98,10 +98,25 @@ export default function CrmQuotes() {
   const totalTTC = totalHT + tvaAmount
 
   const filteredQuotes = quotes.filter(q => {
+    // 1. Role-based scoping
+    if (role === 'rep') {
+      const isOwner =
+        q.ownerName?.toLowerCase().includes(currentUser?.name?.toLowerCase() || '') ||
+        q.user_id === currentUser?.id
+      if (!isOwner) return false
+    } else if (role === 'client') {
+      const clientCompany = currentUser?.company || 'MaroCraft'
+      const isClientQuote =
+        q.accountName?.toLowerCase().includes(clientCompany.toLowerCase()) ||
+        q.client_company?.toLowerCase().includes(clientCompany.toLowerCase())
+      if (!isClientQuote) return false
+    }
+
+    // 2. Search & Status filter
     const matchSearch =
       q.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       q.accountName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      q.ownerName.toLowerCase().includes(searchQuery.toLowerCase())
+      (q.ownerName && q.ownerName.toLowerCase().includes(searchQuery.toLowerCase()))
     const matchStatus = statusFilter === 'all' || q.status === statusFilter
     return matchSearch && matchStatus
   })
@@ -196,14 +211,39 @@ export default function CrmQuotes() {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsNewQuoteOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/30 transition-all self-start sm:self-auto"
-        >
-          <Plus className="h-4 w-4" />
-          <span>{lang === 'ar' ? 'إنشاء عرض سعر جديد' : 'New Quotation'}</span>
-        </button>
+        {role !== 'client' && (
+          <button
+            onClick={() => setIsNewQuoteOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/30 transition-all self-start sm:self-auto"
+          >
+            <Plus className="h-4 w-4" />
+            <span>{lang === 'ar' ? 'إنشاء عرض سعر جديد' : 'New Quotation'}</span>
+          </button>
+        )}
       </div>
+
+      {/* Role Banner */}
+      {role === 'client' && (
+        <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-300 text-xs font-semibold">
+          <Building2 className="h-4 w-4 shrink-0 text-amber-600" />
+          <span>
+            {lang === 'ar'
+              ? `عروض الأسعار الموجهة إلى ${currentUser?.company || 'MaroCraft Industries'}: يمكنك الاطلاع والتوقيع الإلكتروني مباشرة.`
+              : `Proposals addressed to ${currentUser?.company || 'MaroCraft Industries'}: You can review and e-sign directly.`}
+          </span>
+        </div>
+      )}
+
+      {role === 'rep' && (
+        <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+          <span>
+            {lang === 'ar'
+              ? `تشاهد عروض الأسعار التي حررتها لزبنائك. الخصومات التي تفوق 15% تتطلب موافقة المدير التجاري.`
+              : `Viewing quotations issued by your account. Note: Discounts > 15% require Sales Director approval.`}
+          </span>
+        </div>
+      )}
 
       {/* Search & Status Filters */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-navy-900 p-3.5 rounded-lg border border-slate-200 dark:border-white/10">
@@ -316,25 +356,54 @@ export default function CrmQuotes() {
                           <span>{lang === 'ar' ? 'رابط الزبون' : 'Client Link'}</span>
                         </a>
 
-                        {/* Director Approval Button */}
-                        {isPending && role === 'director' && (
-                          <button
-                            onClick={() => handleApprove(quote.id)}
-                            className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] shadow-sm transition-all"
-                          >
-                            Approve Discount
-                          </button>
-                        )}
+                        {/* Role-Specific Actions */}
+                        {role === 'client' ? (
+                          !isAccepted ? (
+                            <a
+                              href={`/portal/quote/${quote.publicToken || quote.public_token || 'token-marocraft-001'}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] shadow-sm transition-all"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <span>{lang === 'ar' ? 'مراجعة وتوقيع العرض' : 'Review & Sign'}</span>
+                            </a>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold text-[10px]">
+                              <CheckCircle2 className="h-3 w-3" />
+                              <span>{lang === 'ar' ? 'تم التوقيع' : 'Signed'}</span>
+                            </span>
+                          )
+                        ) : (
+                          <>
+                            {/* Manager / Admin Discount Approval Button */}
+                            {isPending && (role === 'admin' || role === 'manager' || role === 'director') && (
+                              <button
+                                onClick={() => handleApprove(quote.id)}
+                                className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] shadow-sm transition-all"
+                              >
+                                Approve Discount
+                              </button>
+                            )}
 
-                        {/* Record Client Decision / Accord */}
-                        {!isAccepted && (
-                          <button
-                            onClick={() => handleAccept(quote.id)}
-                            className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] shadow-sm transition-all"
-                            title={lang === 'ar' ? 'تسجيل موافقة الزبون واستلام الـ Bon de commande' : 'Log client agreement / PO received'}
-                          >
-                            {lang === 'ar' ? 'تسجيل موافقة الكليان' : 'Log Client Accord'}
-                          </button>
+                            {/* Rep sees pending label since they cannot approve their own high discount */}
+                            {isPending && role === 'rep' && (
+                              <span className="px-2 py-0.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-bold text-[9px] border border-amber-200 dark:border-amber-800/40">
+                                {lang === 'ar' ? 'في انتظار المدير' : 'Pending Manager'}
+                              </span>
+                            )}
+
+                            {/* Record Client Decision / Accord */}
+                            {!isAccepted && (
+                              <button
+                                onClick={() => handleAccept(quote.id)}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] shadow-sm transition-all"
+                                title={lang === 'ar' ? 'تسجيل موافقة الزبون واستلام الـ Bon de commande' : 'Log client agreement / PO received'}
+                              >
+                                {lang === 'ar' ? 'تسجيل موافقة الكليان' : 'Log Client Accord'}
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </td>

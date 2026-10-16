@@ -137,48 +137,92 @@ export default function LoginPage() {
               {lang === 'ar' ? 'دخول فوري بحساب تجريبي (نقرة واحدة)' : '1-Click Fast Demo Profiles'}
             </span>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {/* Director Demo Option */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* 1. Admin / Director */}
               <button
                 type="button"
-                onClick={() => handleQuickLogin('director')}
-                className="p-3 rounded-2xl bg-white dark:bg-navy-950 border border-brand-200 dark:border-brand-500/30 hover:border-brand-500 hover:shadow-md transition-all text-left rtl:text-right group"
+                onClick={() => handleQuickLogin('admin')}
+                className="p-2.5 rounded-xl bg-white dark:bg-navy-950 border border-brand-200 dark:border-brand-500/30 hover:border-brand-500 hover:shadow-md transition-all text-left rtl:text-right group"
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="h-5 w-5 rounded-lg bg-brand-500/10 flex items-center justify-center text-brand-600">
-                    <ShieldCheck className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <div className="h-4 w-4 rounded-md bg-brand-500/10 flex items-center justify-center text-brand-600">
+                    <ShieldCheck className="h-3 w-3" />
                   </div>
-                  <span className="text-xs font-black text-slate-900 dark:text-white group-hover:text-brand-600 transition-colors">
-                    {lang === 'ar' ? 'مدير المبيعات' : 'Sales Director'}
+                  <span className="text-[11px] font-black text-slate-900 dark:text-white group-hover:text-brand-600 transition-colors">
+                    {lang === 'ar' ? 'المدير العام' : 'Director / Admin'}
                   </span>
                 </div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                  Amine Benzekri
+                <div className="text-[9px] text-slate-500 dark:text-slate-400 truncate">
+                  Karim Tazi
                 </div>
-                <div className="text-[9px] text-brand-600 font-bold mt-1">
-                  Executive Cockpit & Quotas →
+                <div className="text-[8px] text-brand-600 font-bold mt-0.5">
+                  Full Cockpit & Quotas →
                 </div>
               </button>
 
-              {/* Rep Demo Option */}
+              {/* 2. Sales Manager */}
+              <button
+                type="button"
+                onClick={() => handleQuickLogin('manager')}
+                className="p-2.5 rounded-xl bg-white dark:bg-navy-950 border border-blue-200 dark:border-blue-500/30 hover:border-blue-500 hover:shadow-md transition-all text-left rtl:text-right group"
+              >
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <div className="h-4 w-4 rounded-md bg-blue-500/10 flex items-center justify-center text-blue-600">
+                    <Sparkles className="h-3 w-3" />
+                  </div>
+                  <span className="text-[11px] font-black text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">
+                    {lang === 'ar' ? 'مدير المبيعات' : 'Sales Manager'}
+                  </span>
+                </div>
+                <div className="text-[9px] text-slate-500 dark:text-slate-400 truncate">
+                  Sofia Benali
+                </div>
+                <div className="text-[8px] text-blue-600 font-bold mt-0.5">
+                  Team & Approvals →
+                </div>
+              </button>
+
+              {/* 3. Sales Rep */}
               <button
                 type="button"
                 onClick={() => handleQuickLogin('rep')}
-                className="p-3 rounded-2xl bg-white dark:bg-navy-950 border border-emerald-200 dark:border-emerald-500/30 hover:border-emerald-500 hover:shadow-md transition-all text-left rtl:text-right group"
+                className="p-2.5 rounded-xl bg-white dark:bg-navy-950 border border-emerald-200 dark:border-emerald-500/30 hover:border-emerald-500 hover:shadow-md transition-all text-left rtl:text-right group"
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="h-5 w-5 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-                    <TrendingUp className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <div className="h-4 w-4 rounded-md bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                    <TrendingUp className="h-3 w-3" />
                   </div>
-                  <span className="text-xs font-black text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors">
-                    {lang === 'ar' ? 'بائع / مندوب' : 'Sales Rep'}
+                  <span className="text-[11px] font-black text-slate-900 dark:text-white group-hover:text-emerald-600 transition-colors">
+                    {lang === 'ar' ? 'مندوب تجاري' : 'Sales Rep'}
                   </span>
                 </div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
-                  Karim Tazi
+                <div className="text-[9px] text-slate-500 dark:text-slate-400 truncate">
+                  Yassine Mansouri
                 </div>
-                <div className="text-[9px] text-emerald-600 font-bold mt-1">
-                  Kanban & Follow-Ups →
+                <div className="text-[8px] text-emerald-600 font-bold mt-0.5">
+                  Personal Pipeline →
+                </div>
+              </button>
+
+              {/* 4. Client Portal */}
+              <button
+                type="button"
+                onClick={() => handleQuickLogin('client')}
+                className="p-2.5 rounded-xl bg-white dark:bg-navy-950 border border-amber-200 dark:border-amber-500/30 hover:border-amber-500 hover:shadow-md transition-all text-left rtl:text-right group"
+              >
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <div className="h-4 w-4 rounded-md bg-amber-500/10 flex items-center justify-center text-amber-600">
+                    <Check className="h-3 w-3" />
+                  </div>
+                  <span className="text-[11px] font-black text-slate-900 dark:text-white group-hover:text-amber-600 transition-colors">
+                    {lang === 'ar' ? 'الزبون (MaroCraft)' : 'Client Portal'}
+                  </span>
+                </div>
+                <div className="text-[9px] text-slate-500 dark:text-slate-400 truncate">
+                  Omar Kabbaj (DG)
+                </div>
+                <div className="text-[8px] text-amber-600 font-bold mt-0.5">
+                  Proposals & Sign →
                 </div>
               </button>
             </div>

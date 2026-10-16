@@ -10,13 +10,25 @@ use App\Models\Activity;
 class DealController extends Controller
 {
     /**
-     * List all deals with account, owner and quotes
+     * List deals with account, owner and quotes - Scoped by Role
      */
-    public function index()
+    public function index(Request $request)
     {
-        $deals = Deal::with(['account', 'user', 'quotes'])
-            ->orderBy('id', 'desc')
-            ->get();
+        $user = $request->user('sanctum') ?? $request->user();
+        $query = Deal::with(['account', 'user', 'quotes'])->orderBy('id', 'desc');
+
+        if ($user) {
+            if ($user->role === 'rep') {
+                $query->where('user_id', $user->id);
+            } elseif ($user->role === 'client') {
+                $query->whereHas('account', function($q) use ($user) {
+                    $q->where('contact_email', $user->email)
+                      ->orWhere('name', 'like', '%MaroCraft%');
+                });
+            }
+        }
+
+        $deals = $query->get();
 
         return response()->json([
             'success' => true,

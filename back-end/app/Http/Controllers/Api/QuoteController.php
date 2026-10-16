@@ -14,13 +14,28 @@ use App\Models\Activity;
 class QuoteController extends Controller
 {
     /**
-     * List all quotes with relationships
+     * List quotes with relationships - Scoped by Role
      */
-    public function index()
+    public function index(Request $request)
     {
-        $quotes = Quote::with(['deal', 'account', 'user', 'items'])
-            ->orderBy('id', 'desc')
-            ->get();
+        $user = $request->user('sanctum') ?? $request->user();
+        $query = Quote::with(['deal', 'account', 'user', 'items'])->orderBy('id', 'desc');
+
+        if ($user) {
+            if ($user->role === 'rep') {
+                $query->where('user_id', $user->id);
+            } elseif ($user->role === 'client') {
+                $query->where(function ($q) use ($user) {
+                    $q->where('client_email', $user->email)
+                      ->orWhereHas('account', function ($sub) use ($user) {
+                          $sub->where('contact_email', $user->email)
+                              ->orWhere('name', 'like', '%MaroCraft%');
+                      });
+                });
+            }
+        }
+
+        $quotes = $query->get();
 
         return response()->json([
             'success' => true,

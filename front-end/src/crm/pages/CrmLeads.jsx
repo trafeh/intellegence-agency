@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCrm } from '../context/CrmContext'
+import { useAuth } from '../../context/AuthContext'
 import { useLanguage } from '../../context/LanguageContext'
 import {
   Target,
@@ -19,11 +20,14 @@ import {
   MessageSquare,
   Globe,
   Users,
-  X
+  X,
+  ShieldCheck,
+  UserCheck
 } from 'lucide-react'
 
 export default function CrmLeads() {
   const { leads, addLead, convertLeadToDeal } = useCrm()
+  const { currentUser, role } = useAuth()
   const { lang } = useLanguage()
   const navigate = useNavigate()
 
@@ -53,7 +57,41 @@ export default function CrmLeads() {
     }).format(amount)
   }
 
+  // 1. Client Guard: Clients cannot see internal sales prospecting
+  if (role === 'client') {
+    return (
+      <div className="p-12 text-center max-w-xl mx-auto space-y-4 bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm mt-8">
+        <div className="h-16 w-16 mx-auto rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+          <ShieldCheck className="h-8 w-8" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+          {lang === 'ar' ? 'فضاء خاص بفريق المبيعات الداخلي' : 'Internal Sales Module'}
+        </h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+          {lang === 'ar'
+            ? 'قسم استقطاب وتأهيل العملاء مخصص لفرق المبيعات التابعة للوكالة. يرجى التوجه إلى فضاء الزبون للاطلاع على عروضكم ومشاريعكم.'
+            : 'Lead generation and qualification scoring is strictly reserved for internal sales staff. Please return to your Client Space to manage your contracts.'}
+        </p>
+        <button
+          onClick={() => navigate('/crm/dashboard')}
+          className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all shadow-md shadow-brand-600/30"
+        >
+          {lang === 'ar' ? 'العودة إلى فضاء الزبون' : 'Go to Client Space'}
+        </button>
+      </div>
+    )
+  }
+
+  // 2. Role-based scoping: Reps only see their assigned leads or unassigned inbound leads
   const filteredLeads = leads.filter(l => {
+    if (role === 'rep') {
+      const isAssignedToMe =
+        l.assignedTo === currentUser?.id ||
+        l.assignedToName?.toLowerCase().includes(currentUser?.name?.toLowerCase() || '') ||
+        !l.assignedTo
+      if (!isAssignedToMe) return false
+    }
+
     const matchSearch =
       l.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       l.contactName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -67,7 +105,11 @@ export default function CrmLeads() {
     e.preventDefault()
     if (!newLeadForm.companyName || !newLeadForm.contactName) return
 
-    addLead(newLeadForm)
+    addLead({
+      ...newLeadForm,
+      assignedTo: currentUser?.id,
+      assignedToName: currentUser?.name
+    })
     setIsAddLeadOpen(false)
     setNewLeadForm({
       companyName: '',
@@ -105,15 +147,22 @@ export default function CrmLeads() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-navy-900 p-6 rounded-lg border border-slate-200 dark:border-white/10 shadow-sm">
         <div>
           <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <span>{lang === 'ar' ? 'العملاء المحتملون والتأهيل الذكي' : 'Leads & Inbound Intelligence'}</span>
+            <span>{role === 'rep' ? 'My Assigned Leads & Prospects' : (lang === 'ar' ? 'العملاء المحتملون والتأهيل الذكي' : 'Leads & Inbound Intelligence')}</span>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-600/10 text-emerald-600 text-xs font-bold border border-emerald-500/20">
               {filteredLeads.length} leads
             </span>
+            {role === 'rep' && (
+              <span className="px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-600/10 text-blue-600 text-[10px] font-bold border border-blue-500/20">
+                Commercial Rep Pool
+              </span>
+            )}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {lang === 'ar'
-              ? 'تقييم جودة العملاء وتوقع إمكانية الإغلاق بواسطة خوارزميات الذكاء الاصطناعي'
-              : 'Predictive qualification scoring across multi-channel inbound leads with 1-click conversion'}
+            {role === 'rep'
+              ? 'Prospects qualified for you and inbound leads waiting for commercial outreach'
+              : (lang === 'ar'
+                ? 'تقييم جودة العملاء وتوقع إمكانية الإغلاق بواسطة خوارزميات الذكاء الاصطناعي'
+                : 'Predictive qualification scoring across multi-channel inbound leads with 1-click conversion')}
           </p>
         </div>
 
@@ -248,14 +297,14 @@ export default function CrmLeads() {
                 {isConverted ? (
                   <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-xs font-bold">
                     <CheckCircle2 className="h-4 w-4" />
-                    <span>Converted to Deal</span>
+                    <span>Opportunité créée</span>
                   </span>
                 ) : (
                   <button
                     onClick={() => handleConvert(lead.id)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/30 transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-sm transition-all"
                   >
-                    <span>Convert to Deal</span>
+                    <span>{lang === 'ar' ? 'تحويل لصفقة' : 'Convert to Deal'}</span>
                     <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
                   </button>
                 )}
@@ -265,138 +314,139 @@ export default function CrmLeads() {
         })}
       </div>
 
-      {/* ADD LEAD MODAL */}
+      {/* Add Lead Modal */}
       {isAddLeadOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="w-full max-w-lg bg-white dark:bg-navy-900 rounded-lg border border-slate-200 dark:border-white/10 shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
-              <h3 className="text-base font-black text-slate-900 dark:text-white">
-                {lang === 'ar' ? 'إدخال عميل محتمل جديد' : 'New Inbound Lead'}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/5">
+              <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Target className="h-4 w-4 text-brand-600" />
+                <span>{lang === 'ar' ? 'إضافة عميل محتمل جديد' : 'Create New Inbound Lead'}</span>
+              </h2>
               <button
                 onClick={() => setIsAddLeadOpen(false)}
-                className="p-1 rounded-full text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateLead} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                  Company / Organization *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newLeadForm.companyName}
-                  onChange={(e) => setNewLeadForm({ ...newLeadForm, companyName: e.target.value })}
-                  placeholder="e.g., Marjane Holding"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleCreateLead} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    Contact Person *
-                  </label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Company Name</label>
                   <input
                     type="text"
                     required
+                    placeholder="e.g. Sothema Pharma"
+                    value={newLeadForm.companyName}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, companyName: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">City</label>
+                  <input
+                    type="text"
+                    placeholder="Casablanca"
+                    value={newLeadForm.city}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, city: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Contact Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Dr. Rachid Tazi"
                     value={newLeadForm.contactName}
                     onChange={(e) => setNewLeadForm({ ...newLeadForm, contactName: e.target.value })}
-                    placeholder="Full Name"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    Job Title / Role
-                  </label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Job Title</label>
                   <input
                     type="text"
+                    placeholder="Directeur Général"
                     value={newLeadForm.title}
                     onChange={(e) => setNewLeadForm({ ...newLeadForm, title: e.target.value })}
-                    placeholder="Procurement Director"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    Phone (WhatsApp)
-                  </label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
                   <input
-                    type="text"
+                    type="tel"
+                    placeholder="+212 6 61 XX XX XX"
                     value={newLeadForm.phone}
                     onChange={(e) => setNewLeadForm({ ...newLeadForm, phone: e.target.value })}
-                    placeholder="+212 600 00 00 00"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    Work Email
-                  </label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Email</label>
                   <input
                     type="email"
+                    placeholder="contact@company.ma"
                     value={newLeadForm.email}
                     onChange={(e) => setNewLeadForm({ ...newLeadForm, email: e.target.value })}
-                    placeholder="contact@enterprise.ma"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    Acquisition Channel
-                  </label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Inbound Channel</label>
                   <select
                     value={newLeadForm.source}
                     onChange={(e) => setNewLeadForm({ ...newLeadForm, source: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/15 text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500"
                   >
                     <option value="WhatsApp Inbound">WhatsApp Inbound</option>
-                    <option value="Web Form">Website Contact Form</option>
-                    <option value="Referral">Client Referral</option>
-                    <option value="Campaign LinkedIn">LinkedIn Campaign</option>
+                    <option value="Direct Web Lead">Direct Web Lead</option>
+                    <option value="Executive Referral">Executive Referral</option>
+                    <option value="LinkedIn Inbound">LinkedIn Inbound</option>
                   </select>
                 </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                    Estimated Budget (MAD)
-                  </label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Estimated Budget (MAD)</label>
                   <input
                     type="number"
+                    placeholder="250000"
                     value={newLeadForm.estimatedValue}
                     onChange={(e) => setNewLeadForm({ ...newLeadForm, estimatedValue: e.target.value })}
-                    placeholder="150000"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs text-slate-800 dark:text-slate-100 focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500"
                   />
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-end gap-3">
+              <div className="p-3 rounded-xl bg-brand-50 dark:bg-brand-950/30 border border-brand-500/20 text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-brand-600 shrink-0" />
+                <span>Our AI Lead Qualification model will automatically calculate qualification score and closing propensity.</span>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsAddLeadOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5"
+                  className="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 font-bold"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/30 transition-all"
+                  className="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold shadow-md shadow-brand-600/30 transition-all"
                 >
-                  Save & Score Lead
+                  Create & Qualify Lead
                 </button>
               </div>
             </form>

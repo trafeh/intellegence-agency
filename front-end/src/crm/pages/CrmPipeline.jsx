@@ -60,20 +60,38 @@ export default function CrmPipeline() {
     }).format(amount)
   }
 
-  // Filtered deals
+  // Filtered deals strictly scoped by role
   const filteredDeals = useMemo(() => {
     return deals.filter(deal => {
+      // 1. Role-based scoping
+      if (role === 'rep') {
+        const isOwner =
+          deal.ownerId === currentUser?.id ||
+          deal.ownerName?.toLowerCase().includes(currentUser?.name?.toLowerCase() || '') ||
+          deal.user_id === currentUser?.id
+        if (!isOwner) return false
+      } else if (role === 'client') {
+        const clientCompany = currentUser?.company || 'MaroCraft'
+        const isClientDeal = deal.accountName?.toLowerCase().includes(clientCompany.toLowerCase())
+        if (!isClientDeal) return false
+      }
+
+      // 2. Search query filter
       const matchSearch =
         deal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         deal.accountName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         deal.contactName.toLowerCase().includes(searchQuery.toLowerCase())
 
-      const matchRep = selectedRep === 'all' || deal.ownerId === selectedRep
+      // 3. Rep filter (managers and admins only)
+      const matchRep = (role === 'rep' || role === 'client')
+        ? true
+        : (selectedRep === 'all' || deal.ownerId === selectedRep || deal.ownerName === selectedRep)
+
       const matchInactivity = !inactivityFilter || (deal.hasInactivityWarning || deal.lastActivityDaysAgo >= 7)
 
       return matchSearch && matchRep && matchInactivity
     })
-  }, [deals, searchQuery, selectedRep, inactivityFilter])
+  }, [deals, searchQuery, selectedRep, inactivityFilter, role, currentUser])
 
   const handleCreateDeal = (e) => {
     e.preventDefault()
@@ -113,6 +131,39 @@ export default function CrmPipeline() {
     return null
   }
 
+  // Client Guard: Internal sales pipeline & stages are hidden from clients
+  if (role === 'client') {
+    return (
+      <div className="p-12 text-center max-w-xl mx-auto space-y-4 bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm mt-8">
+        <div className="h-16 w-16 mx-auto rounded-2xl bg-brand-500/10 text-brand-600 flex items-center justify-center">
+          <ShieldCheck className="h-8 w-8" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+          {lang === 'ar' ? 'فضاء الزبون — العروض والاتفاقيات' : 'Client Dedicated Space'}
+        </h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+          {lang === 'ar'
+            ? 'مسار الصفقات والـ Kanban الداخلي مخصص لفريق المبيعات. يمكنك فحص وتوقيع عروض الأسعار الخاصة بكم مباشرة من قسم العروض.'
+            : 'Internal sales stage progression is reserved for agency sales representatives. Your customized proposals and signed contracts are accessible in your dedicated Client Portal.'}
+        </p>
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <button
+            onClick={() => navigate('/crm/dashboard')}
+            className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/10 text-slate-800 dark:text-white text-xs font-bold transition-all"
+          >
+            {lang === 'ar' ? 'الرئيسية (فضاء الزبون)' : 'Client Space'}
+          </button>
+          <button
+            onClick={() => navigate('/crm/quotes')}
+            className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all shadow-md shadow-brand-600/30"
+          >
+            {lang === 'ar' ? 'عروض الأسعار والاتفاقيات' : 'My Quotations & Offers'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6 max-w-full">
       {/* Top Header & Pipeline Controls */}
@@ -143,6 +194,29 @@ export default function CrmPipeline() {
         </div>
       </div>
 
+      {/* Role Scoping Banner */}
+      {role === 'rep' && (
+        <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+          <span>
+            {lang === 'ar'
+              ? `🔒 وضع المندوب التجاري: تشاهد فقط صفقاتك الخاصة المسندة إليك (${filteredDeals.length} صفقة لـ ${currentUser?.name || 'حسابك'}).`
+              : `🔒 Commercial Portfolio: Viewing your ${filteredDeals.length} assigned deals (${currentUser?.name || 'Your Account'}).`}
+          </span>
+        </div>
+      )}
+
+      {role === 'client' && (
+        <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-300 text-xs font-semibold">
+          <Building2 className="h-4 w-4 shrink-0 text-amber-600" />
+          <span>
+            {lang === 'ar'
+              ? `🏢 فضاء الزبون: تشاهد فقط مشاريع وصفقات شركة ${currentUser?.company || 'MaroCraft Industries'}.`
+              : `🏢 Client Space: Viewing active opportunities and projects for ${currentUser?.company || 'MaroCraft Industries'}.`}
+          </span>
+        </div>
+      )}
+
       {/* Filter and Search Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-navy-900 p-3.5 rounded-lg border border-slate-200 dark:border-white/10">
         <div className="flex items-center gap-2 flex-1 min-w-[240px]">
@@ -159,18 +233,19 @@ export default function CrmPipeline() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Rep filter */}
-          <select
-            value={selectedRep}
-            onChange={(e) => setSelectedRep(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none"
-          >
-            <option value="all">{lang === 'ar' ? 'جميع البائعين' : 'All Sales Reps'}</option>
-            <option value="usr_rep1">Karim Tazi</option>
-            <option value="usr_rep2">Yasmine Alami</option>
-            <option value="usr_rep3">Omar Mansouri</option>
-            <option value="usr_rep4">Sofia Benjelloun</option>
-          </select>
+          {/* Rep filter (Only for Admin & Manager) */}
+          {(role === 'admin' || role === 'manager' || role === 'director') && (
+            <select
+              value={selectedRep}
+              onChange={(e) => setSelectedRep(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none"
+            >
+              <option value="all">{lang === 'ar' ? 'جميع البائعين' : 'All Sales Reps'}</option>
+              <option value="usr_rep1">Yassine Mansouri</option>
+              <option value="usr_rep2">Mehdi Alaoui</option>
+              <option value="usr_admin">Karim Tazi</option>
+            </select>
+          )}
 
           {/* Inactivity 7-Day Filter Button */}
           <button

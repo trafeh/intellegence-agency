@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useCrm } from '../context/CrmContext'
+import { useAuth } from '../../context/AuthContext'
 import { useLanguage } from '../../context/LanguageContext'
 import {
   BrainCircuit,
@@ -15,12 +17,40 @@ import {
   ShieldCheck,
   Bot,
   MessageSquare,
-  ArrowRight
+  ArrowRight,
+  ShieldAlert
 } from 'lucide-react'
 
 export default function CrmAiAgents() {
   const { aiAgents } = useCrm()
+  const { role } = useAuth()
   const { lang } = useLanguage()
+  const navigate = useNavigate()
+
+  // Guard: Sales AI Copilot suite is internal only
+  if (role === 'client') {
+    return (
+      <div className="p-12 text-center max-w-xl mx-auto space-y-4 bg-white dark:bg-navy-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm mt-8">
+        <div className="h-16 w-16 mx-auto rounded-2xl bg-brand-500/10 text-brand-600 flex items-center justify-center">
+          <BrainCircuit className="h-8 w-8" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+          {lang === 'ar' ? 'وكلاء الذكاء الاصطناعي للمبيعات' : 'Internal Sales AI Suite'}
+        </h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+          {lang === 'ar'
+            ? 'هذه الحزمة من الوكلاء مخصصة للتفاوض التجاري الداخلي وتأهيل الصفقات. للتواصل مع مستشاركم التجاري، يرجى زيارة فضاء الزبون.'
+            : 'These 7 AI agents are configured for internal commercial negotiation, margin protection, and deal closing. To connect with your dedicated advisor, please visit your Client Space.'}
+        </p>
+        <button
+          onClick={() => navigate('/crm/dashboard')}
+          className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold transition-all shadow-md shadow-brand-600/30"
+        >
+          {lang === 'ar' ? 'الذهاب إلى فضاء الزبون' : 'Go to Client Space'}
+        </button>
+      </div>
+    )
+  }
 
   const [selectedAgentId, setSelectedAgentId] = useState('sales_assistant')
   const [chatInput, setChatInput] = useState('')

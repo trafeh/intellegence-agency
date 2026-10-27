@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use App\Support\CrmAccess;
 
 class AuthController extends Controller
 {
@@ -29,6 +30,7 @@ class AuthController extends Controller
         }
 
         $token = $user->createToken('crm-auth-token')->plainTextToken;
+        $user->load('account:id,name');
 
         return response()->json([
             'success' => true,
@@ -42,6 +44,11 @@ class AuthController extends Controller
                 'title' => $user->title,
                 'phone' => $user->phone,
                 'quota' => $user->quota,
+                'account_id' => $user->account_id,
+                'account' => $user->account ? [
+                    'id' => $user->account->id,
+                    'name' => $user->account->name,
+                ] : null,
             ]
         ]);
     }
@@ -51,9 +58,25 @@ class AuthController extends Controller
      */
     public function me(Request $request)
     {
+        $user = $request->user();
+        $user->load('account:id,name');
+
         return response()->json([
             'success' => true,
-            'user' => $request->user()
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'title' => $user->title,
+                'phone' => $user->phone,
+                'quota' => $user->quota,
+                'account_id' => $user->account_id,
+                'account' => $user->account ? [
+                    'id' => $user->account->id,
+                    'name' => $user->account->name,
+                ] : null,
+            ]
         ]);
     }
 
@@ -73,8 +96,9 @@ class AuthController extends Controller
     /**
      * List all team members
      */
-    public function users()
+    public function users(Request $request)
     {
+        CrmAccess::requireManager($request->user());
         $users = User::select('id', 'name', 'email', 'role', 'title', 'phone', 'quota', 'created_at')
             ->orderBy('id', 'asc')
             ->get();

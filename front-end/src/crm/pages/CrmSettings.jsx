@@ -21,6 +21,10 @@ export default function CrmSettings() {
   const { lang } = useLanguage()
   const navigate = useNavigate()
   const [savedToast, setSavedToast] = useState(false)
+  const [settingsForm, setSettingsForm] = useState({
+    companyName: 'Atlas Distribution & Intelligence Group', currency: 'MAD', inactivityThresholdDays: 7,
+    discountApprovalThreshold: 15, vatRate: 20, autoDraftWhatsApp: true,
+  })
 
   // System Settings: Restricted to Administrator (CRO / Root Admin)
   if (role !== 'admin' && role !== 'director') {
@@ -47,24 +51,16 @@ export default function CrmSettings() {
     )
   }
 
-  const [settingsForm, setSettingsForm] = useState({
-    companyName: 'Atlas Distribution & Intelligence Group',
-    currency: 'MAD',
-    inactivityThresholdDays: 7,
-    discountApprovalThreshold: 15,
-    vatRate: 20,
-    autoDraftWhatsApp: true,
-  })
-
   const handleSave = (e) => {
     e.preventDefault()
     setSavedToast(true)
     setTimeout(() => setSavedToast(false), 3000)
   }
 
-  const handleReset = () => {
-    if (window.confirm("Reset all CRM demo data to default English dataset?")) {
-      resetData()
+  const handleReset = async () => {
+    if (window.confirm("Refresh CRM records from the server?")) {
+      const refreshed = await resetData()
+      if (!refreshed) return
       setSavedToast(true)
       setTimeout(() => setSavedToast(false), 3000)
     }
@@ -97,7 +93,7 @@ export default function CrmSettings() {
           className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-rose-200 dark:border-rose-900/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-xs font-bold transition-colors"
         >
           <RefreshCw className="h-3.5 w-3.5" />
-          <span>Reset Demo Data</span>
+          <span>Refresh CRM Data</span>
         </button>
       </div>
 

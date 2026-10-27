@@ -19,11 +19,13 @@ import {
   X,
   Send,
   ShieldCheck,
-  ExternalLink
+  ExternalLink,
+  Link2Off,
+  AlertCircle
 } from 'lucide-react'
 
 export default function CrmQuotes() {
-  const { quotes, deals, accounts, addQuote, approveQuoteDiscount, acceptQuote } = useCrm()
+  const { quotes, deals, accounts, addQuote, approveQuoteDiscount, sendQuote, acceptQuote, pendingMutations, mutationError } = useCrm()
   const { currentUser, role } = useAuth()
   const { lang } = useLanguage()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -105,10 +107,14 @@ export default function CrmQuotes() {
         q.user_id === currentUser?.id
       if (!isOwner) return false
     } else if (role === 'client') {
-      const clientCompany = currentUser?.company || 'MaroCraft'
+      const clientCompany = currentUser?.accountName || currentUser?.account?.name || ''
       const isClientQuote =
-        q.accountName?.toLowerCase().includes(clientCompany.toLowerCase()) ||
-        q.client_company?.toLowerCase().includes(clientCompany.toLowerCase())
+        (currentUser?.accountId && (q.accountId || q.account_id) === currentUser.accountId) ||
+        (clientCompany && (
+          q.accountName?.toLowerCase().includes(clientCompany.toLowerCase()) ||
+          q.client_company?.toLowerCase().includes(clientCompany.toLowerCase())
+        )) ||
+        q.client_email === currentUser?.email
       if (!isClientQuote) return false
     }
 
@@ -144,12 +150,17 @@ export default function CrmQuotes() {
     })
   }
 
-  const handleCreateQuote = (e) => {
+  const handleCreateQuote = async (e) => {
     e.preventDefault()
     const acc = accounts.find(a => a.id === newQuoteForm.accountId) || accounts[0]
+    if (!acc) {
+      setSuccessToast('Create or load an account before creating a quote.')
+      setTimeout(() => setSuccessToast(null), 4000)
+      return
+    }
     const deal = deals.find(d => d.id === newQuoteForm.dealId)
 
-    const created = addQuote({
+    const created = await addQuote({
       dealId: deal?.id || '',
       accountId: acc.id,
       accountName: acc.name,
@@ -164,26 +175,38 @@ export default function CrmQuotes() {
       totalTTC,
     })
 
+    if (!created) return
     setIsNewQuoteOpen(false)
-    if (newQuoteForm.discountPercent > 15) {
-      setSuccessToast(`Quote ${created.id} created. Discount > 15%: Forwarded to Director for approval.`)
+    if (created.status === 'Pending Approval') {
+      setSuccessToast(`Quote ${created.id} created and is awaiting manager approval.`)
     } else {
       setSuccessToast(`Quote ${created.id} generated successfully!`)
     }
     setTimeout(() => setSuccessToast(null), 5000)
   }
 
-  const handleApprove = (quoteId) => {
-    approveQuoteDiscount(quoteId)
+  const handleApprove = async (quoteId) => {
+    const approved = await approveQuoteDiscount(quoteId)
+    if (!approved) return
     setSuccessToast(`Discount approved by Sales Director! Quote is now ready for delivery.`)
     setTimeout(() => setSuccessToast(null), 4000)
   }
 
-  const handleAccept = (quoteId) => {
-    acceptQuote(quoteId)
-    setSuccessToast(`Quote Accepted! Deal marked as Closed Won and transmitted to Logistics & ERP.`)
+  const handleSend = async quoteId => {
+    const sent = await sendQuote(quoteId)
+    if (!sent) return
+    setSuccessToast(`Quote ${sent.id} status updated to Sent.`)
+    setTimeout(() => setSuccessToast(null), 4000)
+  }
+
+  const handleAccept = async (quoteId) => {
+    const accepted = await acceptQuote(quoteId)
+    if (!accepted) return
+    setSuccessToast('Quote acceptance confirmed. The linked deal has been reconciled with the server.')
     setTimeout(() => setSuccessToast(null), 5000)
   }
+
+  // Note: Link revocation is temporarily unavailable pending database compatibility work.
 
   return (
     <div className="space-y-6 w-full">
@@ -192,6 +215,14 @@ export default function CrmQuotes() {
         <div className="fixed bottom-6 right-6 z-50 p-4 rounded-lg bg-brand-600 text-white shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom">
           <CheckCircle2 className="h-5 w-5 shrink-0" />
           <span className="text-xs font-bold">{successToast}</span>
+        </div>
+      )}
+
+      {/* Mutation Error Alert */}
+      {mutationError && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs font-semibold">
+          <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+          <span>{mutationError}</span>
         </div>
       )}
 
@@ -228,8 +259,8 @@ export default function CrmQuotes() {
           <Building2 className="h-4 w-4 shrink-0 text-amber-600" />
           <span>
             {lang === 'ar'
-              ? `عروض الأسعار الموجهة إلى ${currentUser?.company || 'MaroCraft Industries'}: يمكنك الاطلاع والتوقيع الإلكتروني مباشرة.`
-              : `Proposals addressed to ${currentUser?.company || 'MaroCraft Industries'}: You can review and e-sign directly.`}
+              ? `عروض الأسعار الموجهة إلى ${currentUser?.accountName || currentUser?.account?.name || 'حسابكم'}: يمكنك الاطلاع والتوقيع الإلكتروني مباشرة.`
+              : `Proposals addressed to ${currentUser?.accountName || currentUser?.account?.name || 'Your Company'}: You can review and e-sign directly.`}
           </span>
         </div>
       )}
@@ -271,6 +302,18 @@ export default function CrmQuotes() {
         </select>
       </div>
 
+      {/* Notice: Link Revocation Temporarily Unavailable */}
+      {role !== 'client' && (
+        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 text-xs">
+          <Link2Off className="h-4 w-4 shrink-0 text-slate-400" />
+          <span>
+            {lang === 'ar'
+              ? 'تنبيه: خاصية إلغاء روابط عروض الأسعار غير متاحة مؤقتاً في انتظار إكمال توافق قاعدة البيانات.'
+              : 'Link revocation is temporarily unavailable pending database compatibility work.'}
+          </span>
+        </div>
+      )}
+
       {/* Quotes Table */}
       <div className="bg-white dark:bg-navy-900 rounded-lg border border-slate-200 dark:border-white/10 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -291,6 +334,8 @@ export default function CrmQuotes() {
               {filteredQuotes.map((quote) => {
                 const isPending = quote.status === 'Pending Approval'
                 const isAccepted = quote.status === 'Accepted'
+                const isDraft = quote.status === 'Draft'
+                const isSent = quote.status === 'Sent'
 
                 return (
                   <tr key={quote.id} className="hover:bg-slate-50/80 dark:hover:bg-white/5 transition-colors">
@@ -344,30 +389,47 @@ export default function CrmQuotes() {
                           <Eye className="h-3.5 w-3.5" />
                         </button>
 
-                        {/* Public Client Portal Link */}
-                        <a
-                          href={`/portal/quote/${quote.publicToken || quote.public_token || 'token-marocraft-001'}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 font-bold text-[10px] shadow-sm transition-all"
-                          title={lang === 'ar' ? 'فتح بوابة الزبون للتوقيع المباشر' : 'Open client portal for direct e-signature'}
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          <span>{lang === 'ar' ? 'رابط الزبون' : 'Client Link'}</span>
-                        </a>
+                        {/* Public Client Portal Link (only if active & not revoked) */}
+                        {quote.publicToken && !quote.isRevoked && (
+                          <a
+                            href={`/portal/quote/${quote.publicToken}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 font-bold text-[10px] shadow-sm transition-all"
+                            title={lang === 'ar' ? 'فتح بوابة الزبون للتوقيع المباشر' : 'Open client portal for direct e-signature'}
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            <span>{lang === 'ar' ? 'رابط الزبون' : 'Client Link'}</span>
+                          </a>
+                        )}
+
+                        {/* Badge if link is revoked */}
+                        {quote.isRevoked && (
+                          <span className="px-2 py-0.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 font-bold text-[9px] border border-rose-200 dark:border-rose-900/50">
+                            {lang === 'ar' ? 'الرابط ملغى' : 'Link Revoked'}
+                          </span>
+                        )}
 
                         {/* Role-Specific Actions */}
                         {role === 'client' ? (
                           !isAccepted ? (
-                            <a
-                              href={`/portal/quote/${quote.publicToken || quote.public_token || 'token-marocraft-001'}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] shadow-sm transition-all"
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              <span>{lang === 'ar' ? 'مراجعة وتوقيع العرض' : 'Review & Sign'}</span>
-                            </a>
+                            quote.isRevoked ? (
+                              <span className="text-[10px] text-rose-500 font-semibold px-2 py-0.5 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50">
+                                {lang === 'ar' ? 'الرابط ملغى' : 'Link Revoked'}
+                              </span>
+                            ) : quote.publicToken ? (
+                              <a
+                                href={`/portal/quote/${quote.publicToken}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] shadow-sm transition-all"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span>{lang === 'ar' ? 'مراجعة وتوقيع العرض' : 'Review & Sign'}</span>
+                              </a>
+                            ) : (
+                              <span className="text-[10px] text-slate-500">Client link unavailable</span>
+                            )
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold text-[10px]">
                               <CheckCircle2 className="h-3 w-3" />
@@ -376,9 +438,28 @@ export default function CrmQuotes() {
                           )
                         ) : (
                           <>
+                            {/* Revoke Public Token Action — Temporarily disabled pending database compatibility work */}
+                            {quote.publicToken && !quote.isRevoked && !isAccepted && (
+                              <button
+                                type="button"
+                                disabled
+                                aria-disabled="true"
+                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-400 dark:text-slate-500 font-bold text-[10px] border border-slate-200 dark:border-slate-800 cursor-not-allowed opacity-75 shadow-none transition-all select-none"
+                                title={
+                                  lang === 'ar'
+                                    ? 'إلغاء الرابط غير متاح مؤقتاً في انتظار توافق قاعدة البيانات'
+                                    : 'Link revocation is temporarily unavailable pending database compatibility work'
+                                }
+                              >
+                                <Link2Off className="h-3 w-3" />
+                                <span>{lang === 'ar' ? 'إلغاء الرابط (غير متاح)' : 'Revoke Link (Unavailable)'}</span>
+                              </button>
+                            )}
+                            {isDraft && !isPending && <button onClick={() => handleSend(quote.id)} className="px-2.5 py-1 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-bold text-[10px]">Send to Client</button>}
                             {/* Manager / Admin Discount Approval Button */}
                             {isPending && (role === 'admin' || role === 'manager' || role === 'director') && (
                               <button
+                                disabled={Boolean(pendingMutations[`approve-quote-${quote.id}`])}
                                 onClick={() => handleApprove(quote.id)}
                                 className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] shadow-sm transition-all"
                               >
@@ -394,8 +475,9 @@ export default function CrmQuotes() {
                             )}
 
                             {/* Record Client Decision / Accord */}
-                            {!isAccepted && (
+                            {!isAccepted && isSent && (
                               <button
+                                disabled={Boolean(pendingMutations[`accept-quote-${quote.id}`])}
                                 onClick={() => handleAccept(quote.id)}
                                 className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] shadow-sm transition-all"
                                 title={lang === 'ar' ? 'تسجيل موافقة الزبون واستلام الـ Bon de commande' : 'Log client agreement / PO received'}

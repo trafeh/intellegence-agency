@@ -17,15 +17,17 @@ import {
   Building2,
   User,
   CheckCircle2,
+  ShieldCheck,
   XCircle,
   Sparkles,
   ChevronRight,
   FileText,
+  Info,
   X
 } from 'lucide-react'
 
 export default function CrmPipeline() {
-  const { deals, stages, accounts, quotes, moveDealStage, addDeal, executeFollowUp } = useCrm()
+  const { deals, stages, accounts, quotes, users, moveDealStage, addDeal, updateDeal, executeFollowUp, mutationError } = useCrm()
   const { currentUser, role } = useAuth()
   const { lang } = useLanguage()
   const navigate = useNavigate()
@@ -40,6 +42,18 @@ export default function CrmPipeline() {
   const [isNewDealOpen, setIsNewDealOpen] = useState(searchParams.get('action') === 'new-deal')
   const [selectedDeal, setSelectedDeal] = useState(null)
 
+  // Dynamic Sales Reps list
+  const salesReps = useMemo(() => {
+    const list = (users || []).filter(u => u.role === 'rep' || u.role === 'manager' || u.role === 'admin')
+    if (list.length > 0) return list
+    return [
+      { id: '1', name: 'Karim Tazi', role: 'admin', title: 'CRO / Admin' },
+      { id: '2', name: 'Sofia Benali', role: 'manager', title: 'VP Regional Sales' },
+      { id: '3', name: 'Yassine Mansouri', role: 'rep', title: 'Senior Account Executive' },
+      { id: '4', name: 'Mehdi Alaoui', role: 'rep', title: 'Commercial B2B' },
+    ]
+  }, [users])
+
   // New deal form
   const [newDealForm, setNewDealForm] = useState({
     title: '',
@@ -49,6 +63,7 @@ export default function CrmPipeline() {
     probability: 40,
     expectedClose: '2026-11-30',
     priority: 'high',
+    userId: currentUser?.id || '3',
   })
 
   // Format currency
@@ -71,8 +86,10 @@ export default function CrmPipeline() {
           deal.user_id === currentUser?.id
         if (!isOwner) return false
       } else if (role === 'client') {
-        const clientCompany = currentUser?.company || 'MaroCraft'
-        const isClientDeal = deal.accountName?.toLowerCase().includes(clientCompany.toLowerCase())
+        const clientCompany = currentUser?.accountName || currentUser?.account?.name || ''
+        const isClientDeal =
+          (currentUser?.accountId && (String(deal.accountId) === String(currentUser.accountId) || String(deal.account_id) === String(currentUser.accountId))) ||
+          (clientCompany && deal.accountName?.toLowerCase().includes(clientCompany.toLowerCase()))
         if (!isClientDeal) return false
       }
 
@@ -93,12 +110,12 @@ export default function CrmPipeline() {
     })
   }, [deals, searchQuery, selectedRep, inactivityFilter, role, currentUser])
 
-  const handleCreateDeal = (e) => {
+  const handleCreateDeal = async (e) => {
     e.preventDefault()
     if (!newDealForm.title || !newDealForm.amount) return
 
     const acc = accounts.find(a => a.id === newDealForm.accountId) || accounts[0]
-    addDeal({
+    const created = await addDeal({
       title: newDealForm.title,
       accountId: acc.id,
       accountName: acc.name,
@@ -108,7 +125,9 @@ export default function CrmPipeline() {
       probability: Number(newDealForm.probability),
       expectedClose: newDealForm.expectedClose,
       priority: newDealForm.priority,
+      userId: newDealForm.userId || undefined,
     })
+    if (!created) return
 
     setIsNewDealOpen(false)
     setNewDealForm({
@@ -119,16 +138,19 @@ export default function CrmPipeline() {
       probability: 40,
       expectedClose: '2026-11-30',
       priority: 'high',
+      userId: currentUser?.id || '3',
     })
   }
 
   // Get next stage for fast forward
   const getNextStageId = (currentStageId) => {
     const idx = stages.findIndex(s => s.id === currentStageId)
-    if (idx !== -1 && idx < stages.length - 2) {
-      return stages[idx + 1].id
+    if (idx === -1) return null
+    const next = stages[idx + 1]
+    if (!next || next.id === 'won' || next.id === 'lost') {
+      return null
     }
-    return null
+    return next.id
   }
 
   // Client Guard: Internal sales pipeline & stages are hidden from clients
@@ -200,8 +222,8 @@ export default function CrmPipeline() {
           <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
           <span>
             {lang === 'ar'
-              ? `🔒 وضع المندوب التجاري: تشاهد فقط صفقاتك الخاصة المسندة إليك (${filteredDeals.length} صفقة لـ ${currentUser?.name || 'حسابك'}).`
-              : `🔒 Commercial Portfolio: Viewing your ${filteredDeals.length} assigned deals (${currentUser?.name || 'Your Account'}).`}
+              ? `وضع المندوب التجاري: تشاهد فقط صفقاتك الخاصة المسندة إليك (${filteredDeals.length} صفقة لـ ${currentUser?.name || 'حسابك'}).`
+              : `Commercial Portfolio: Viewing your ${filteredDeals.length} assigned deals (${currentUser?.name || 'Your Account'}).`}
           </span>
         </div>
       )}
@@ -211,8 +233,8 @@ export default function CrmPipeline() {
           <Building2 className="h-4 w-4 shrink-0 text-amber-600" />
           <span>
             {lang === 'ar'
-              ? `🏢 فضاء الزبون: تشاهد فقط مشاريع وصفقات شركة ${currentUser?.company || 'MaroCraft Industries'}.`
-              : `🏢 Client Space: Viewing active opportunities and projects for ${currentUser?.company || 'MaroCraft Industries'}.`}
+              ? `فضاء الزبون: تشاهد فقط مشاريع وصفقات شركة ${currentUser?.accountName || currentUser?.account?.name || 'حسابكم'}.`
+              : `Client Space: Viewing active opportunities and projects for ${currentUser?.accountName || currentUser?.account?.name || 'Your Company'}.`}
           </span>
         </div>
       )}
@@ -241,9 +263,11 @@ export default function CrmPipeline() {
               className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none"
             >
               <option value="all">{lang === 'ar' ? 'جميع البائعين' : 'All Sales Reps'}</option>
-              <option value="usr_rep1">Yassine Mansouri</option>
-              <option value="usr_rep2">Mehdi Alaoui</option>
-              <option value="usr_admin">Karim Tazi</option>
+              {salesReps.map((r) => (
+                <option key={r.id} value={String(r.id)}>
+                  {r.name}
+                </option>
+              ))}
             </select>
           )}
 
@@ -366,15 +390,15 @@ export default function CrmPipeline() {
                               <FileText className="h-3.5 w-3.5" />
                             </button>
 
-                            {/* Quick Advance Button */}
-                            {nextStage && (
+                            {/* Quick Advance Button (Manager and Admin only) */}
+                            {nextStage && (role === 'admin' || role === 'manager' || role === 'director') && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   moveDealStage(deal.id, nextStage)
                                 }}
                                 className="p-1 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-brand-600 hover:text-white text-slate-600 dark:text-slate-300 transition-colors"
-                                title="Advance to next sales stage"
+                                title={lang === 'ar' ? 'التقدم للمرحلة التالية (المدير والمشرف فقط)' : 'Advance to next sales stage (Admin & Manager only)'}
                               >
                                 <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
                               </button>
@@ -495,6 +519,54 @@ export default function CrmPipeline() {
             </div>
 
             <div className="p-6 space-y-6 overflow-y-auto">
+              {/* Commercial Representative Assignment Bar */}
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      {lang === 'ar' ? 'المندوب التجاري المسؤول' : 'Assigned Commercial Representative'}
+                    </span>
+                    <span className="text-xs font-black text-slate-900 dark:text-white">
+                      {selectedDeal.ownerName || 'Unassigned'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Manager / Admin Reassignment Control */}
+                {(role === 'admin' || role === 'manager' || role === 'director') ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                      {lang === 'ar' ? 'إسناد لـ:' : 'Assign to:'}
+                    </span>
+                    <select
+                      value={selectedDeal.ownerId || ''}
+                      onChange={async (e) => {
+                        const newRepId = e.target.value
+                        if (!newRepId || newRepId === selectedDeal.ownerId) return
+                        const updated = await updateDeal(selectedDeal.id, { userId: newRepId })
+                        if (updated) {
+                          setSelectedDeal(updated)
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/10 text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500 shadow-sm"
+                    >
+                      {salesReps.map((r) => (
+                        <option key={r.id} value={String(r.id)}>
+                          {r.name} ({r.title || r.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300">
+                    Portfolio: {selectedDeal.ownerName}
+                  </span>
+                )}
+              </div>
+
               {/* Financial & Stage Bar */}
               <div className="grid grid-cols-3 gap-4 p-4 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5">
                 <div>
@@ -519,27 +591,99 @@ export default function CrmPipeline() {
 
               {/* Stage Progression Selector */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-2">
-                  Active Sales Stage
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {stages.map((st) => (
-                    <button
-                      key={st.id}
-                      onClick={() => {
-                        moveDealStage(selectedDeal.id, st.id)
-                        setSelectedDeal(prev => ({ ...prev, stage: st.id }))
-                      }}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
-                        selectedDeal.stage === st.id
-                          ? 'bg-brand-600 text-white border-brand-600 shadow-sm'
-                          : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-brand-500'
-                      }`}
-                    >
-                      {lang === 'ar' ? st.nameAr : st.nameEn}
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase">
+                    Active Sales Stage
+                  </label>
+                  {selectedDeal.stage === 'won' && (
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      Locked (Closed Won)
+                    </span>
+                  )}
                 </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {stages.map((st) => {
+                    const isCurrent = selectedDeal.stage === st.id
+                    const isWonBtn = st.id === 'won'
+                    const isDealWon = selectedDeal.stage === 'won'
+                    const isRep = role === 'rep'
+                    const isDisabled = isDealWon || (isWonBtn && !isCurrent) || (isRep && !isCurrent)
+
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={async () => {
+                          if (isDisabled || isCurrent) return
+                          const confirmed = await moveDealStage(selectedDeal.id, st.id)
+                          if (confirmed) {
+                            setSelectedDeal(confirmed)
+                          }
+                        }}
+                        title={
+                          isWonBtn && !isCurrent
+                            ? 'Deals can only be marked Won by accepting an eligible quote'
+                            : isDealWon
+                              ? 'Won deals are locked and cannot change stage'
+                              : isRep
+                                ? 'Only Managers and Admins can change deal stages'
+                                : ''
+                        }
+                        className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
+                          isCurrent
+                            ? st.id === 'won'
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                              : 'bg-brand-600 text-white border-brand-600 shadow-sm'
+                            : isDisabled
+                              ? 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
+                              : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:border-brand-500'
+                        }`}
+                      >
+                        {lang === 'ar' ? st.nameAr : st.nameEn}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Explanatory note */}
+                {role === 'rep' && (
+                  <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5 font-medium">
+                    <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                    <span>
+                      {lang === 'ar'
+                        ? 'تغيير مراحل الصفقات مخصص للإدارة (المدير والمشرف). كل تدخلاتك التجارية مسجلة في سجل الأنشطة.'
+                        : 'Stage progression is managed exclusively by Sales Managers & Admins. All commercial interactions are recorded in the audit log.'}
+                    </span>
+                  </p>
+                )}
+                {role !== 'rep' && selectedDeal.stage === 'won' ? (
+                  <p className="mt-2 text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 font-medium">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      {lang === 'ar'
+                        ? 'هذه الصفقة رابحة ومغلقة رسمياً عبر توقيع عرض السعر.'
+                        : 'This deal was won via signed quote acceptance and is locked.'}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Info className="h-3.5 w-3.5 text-brand-500 shrink-0" />
+                    <span>
+                      {lang === 'ar'
+                        ? 'التحويل إلى صفقة رابحة (Won) يتم تلقائياً فقط عند اعتماد وتوقيع عرض سعر رسمي مرتبط بها.'
+                        : 'Deals can only be won by accepting an eligible quote. Generate or accept an official quote below to close.'}
+                    </span>
+                  </p>
+                )}
+
+                {mutationError && (
+                  <div className="mt-2 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-300 text-xs flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>{mutationError}</span>
+                  </div>
+                )}
               </div>
 
               {/* AI Recommendation Engine Box (PDF requirement) */}
@@ -734,6 +878,25 @@ export default function CrmPipeline() {
                   />
                 </div>
               </div>
+
+              {(role === 'admin' || role === 'manager' || role === 'director') && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-1">
+                    {lang === 'ar' ? 'المندوب التجاري المسند إليه *' : 'Assign Sales Representative *'}
+                  </label>
+                  <select
+                    value={newDealForm.userId}
+                    onChange={(e) => setNewDealForm({ ...newDealForm, userId: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none"
+                  >
+                    {salesReps.map(r => (
+                      <option key={r.id} value={String(r.id)}>
+                        {r.name} ({r.title || r.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="pt-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-end gap-3">
                 <button

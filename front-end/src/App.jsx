@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { LanguageProvider } from './context/LanguageContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
@@ -35,8 +35,17 @@ import CrmQuotes from './crm/pages/CrmQuotes'
 import CrmActivities from './crm/pages/CrmActivities'
 import CrmAiAgents from './crm/pages/CrmAiAgents'
 import CrmTeam from './crm/pages/CrmTeam'
+import CrmRepLogs from './crm/pages/CrmRepLogs'
 import CrmSettings from './crm/pages/CrmSettings'
 import ClientQuotePortal from './pages/ClientQuotePortal'
+import { useAuth } from './context/AuthContext'
+
+function ProtectedCrm() {
+  const { isAuthenticated, authLoading } = useAuth()
+  const location = useLocation()
+  if (authLoading) return <div className="min-h-screen bg-slate-50 dark:bg-navy-950" aria-label="Loading session" />
+  return isAuthenticated ? <CrmLayout /> : <Navigate to="/login" replace state={{ from: location }} />
+}
 
 function LandingPage() {
   const [partnerModalOpen, setPartnerModalOpen] = useState(false)
@@ -73,7 +82,7 @@ function LandingPage() {
         <GovernanceSecurity />
 
         {/* 9. Layered Technology Architecture */}
-        {/* <Architecture /> */}
+        <Architecture />
 
         {/* 10. Executive Analytics & Funnel */}
         <AnalyticsKpi />
@@ -85,20 +94,20 @@ function LandingPage() {
         <TargetCustomers />
 
         {/* 13. Phased Roadmap */}
-        {/* <Roadmap /> */}
+        <Roadmap />
 
         {/* 14. Strategic Partnership CTA */}
-        {/* <PartnershipCta onOpenModal={() => setPartnerModalOpen(true)} /> */}
+        <PartnershipCta onOpenModal={() => setPartnerModalOpen(true)} />
       </main>
 
       {/* Footer & Global Ambition */}
       <Footer onOpenPartnerModal={() => setPartnerModalOpen(true)} />
 
       {/* Interactive Early Access Modal */}
-      {/* <PartnerModal
+      <PartnerModal
         isOpen={partnerModalOpen}
         onClose={() => setPartnerModalOpen(false)}
-      /> */}
+      />
     </div>
   )
 }
@@ -118,7 +127,7 @@ export default function App() {
                 <Route path="/login" element={<LoginPage />} />
 
                 {/* 3. The CRM Application Suite */}
-                <Route path="/crm" element={<CrmLayout />}>
+                <Route path="/crm" element={<ProtectedCrm />}>
                   <Route index element={<Navigate to="/crm/dashboard" replace />} />
                   <Route path="dashboard" element={<CrmDashboard />} />
                   <Route path="pipeline" element={<CrmPipeline />} />
@@ -128,6 +137,7 @@ export default function App() {
                   <Route path="activities" element={<CrmActivities />} />
                   <Route path="ai-agents" element={<CrmAiAgents />} />
                   <Route path="team" element={<CrmTeam />} />
+                  <Route path="rep-logs" element={<CrmRepLogs />} />
                   <Route path="settings" element={<CrmSettings />} />
                 </Route>
 

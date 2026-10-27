@@ -65,3 +65,19 @@ html, body, #root {
 .dark html, .dark body, .dark #root {
   background-color: #050b16;
 }
+
+/* Ensure all buttons and interactive controls have pointer cursor */
+button,
+[role="button"],
+select,
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+button[disabled] {
+  cursor: not-allowed;
+}

@@ -11,7 +11,8 @@ import {
   Check,
   Menu, 
   X, 
-  ArrowRight
+  ArrowRight,
+  FileText
 } from 'lucide-react'
 import logoLight from '../assets/logolight.png'
 import logoDark from '../assets/logodark.png'
@@ -156,6 +157,15 @@ export default function Navbar({ onOpenPartnerModal }) {
             )}
           </button>
 
+          {/* Request Proposal CTA */}
+          <button
+            onClick={onOpenPartnerModal}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-brand-500/30 hover:border-brand-500 bg-brand-50 hover:bg-brand-100 dark:bg-brand-500/10 dark:hover:bg-brand-500/20 text-brand-700 dark:text-brand-300 text-xs font-bold tracking-wide uppercase transition-all shadow-sm"
+          >
+            <FileText className="h-3.5 w-3.5 text-brand-600 dark:text-brand-400" />
+            <span>{lang === 'ar' ? 'طلب عرض سعر' : lang === 'fr' ? 'Demander un Devis' : 'Request Proposal'}</span>
+          </button>
+
           {/* Sign In CTA */}
           <Link
             to="/login"
@@ -232,7 +242,17 @@ export default function Navbar({ onOpenPartnerModal }) {
               {link.label}
             </a>
           ))}
-          <div className="pt-3 border-t border-slate-200 dark:border-white/10 flex flex-col gap-3">
+          <div className="pt-3 border-t border-slate-200 dark:border-white/10 flex flex-col gap-2.5">
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false)
+                onOpenPartnerModal()
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-full border border-brand-500/30 bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-300 text-xs font-bold uppercase transition-colors"
+            >
+              <FileText className="h-4 w-4" />
+              <span>{lang === 'ar' ? 'طلب عرض سعر (Devis)' : lang === 'fr' ? 'Demander un Devis' : 'Request Proposal'}</span>
+            </button>
             <Link
               to="/login"
               onClick={() => setMobileMenuOpen(false)}

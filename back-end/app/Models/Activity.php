@@ -19,6 +19,8 @@ class Activity extends Model
         'description',
         'scheduled_at',
         'completed',
+        'idempotency_key',
+        'idempotency_hash',
     ];
 
     protected $casts = [

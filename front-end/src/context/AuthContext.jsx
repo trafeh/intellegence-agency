@@ -1,116 +1,66 @@
-import { createContext, useContext, useState, useEffect } from 'react'
-import { INITIAL_USERS } from '../crm/data/crmMockData'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { crmApi } from '../services/crmApi'
 
 const AuthContext = createContext(null)
 
-export function AuthProvider({ children }) {
-  const [currentUser, setCurrentUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('intelligence_sales_user')
-      if (saved) return JSON.parse(saved)
-    } catch (e) {
-      console.error(e)
-    }
-    // Default to Admin so the app is immediately usable
-    return INITIAL_USERS[0]
-  })
+function normalizeUser(user) {
+  if (!user) return null
+  const accountId = user.account_id ?? user.account?.id ?? null
+  const accountName = user.account?.name || null
+  return {
+    ...user,
+    account_id: accountId,
+    accountId,
+    accountName,
+    company: accountName,
+    initials: user.name?.split(' ').map(part => part[0]).join('').slice(0, 2) || '',
+  }
+}
 
-  const isAuthenticated = Boolean(currentUser)
-  const role = currentUser?.role || 'admin'
+export function AuthProvider({ children }) {
+  const [currentUser, setCurrentUser] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
 
   useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('intelligence_sales_user', JSON.stringify(currentUser))
-    } else {
-      localStorage.removeItem('intelligence_sales_user')
-    }
-  }, [currentUser])
+    let active = true
+    const onUnauthorized = () => { setCurrentUser(null); crmApi.clearToken() }
+    window.addEventListener('crm:unauthorized', onUnauthorized)
+    const token = localStorage.getItem('intelligence_sales_token')
+    if (!token) setAuthLoading(false)
+    else crmApi.getMe().then(res => {
+      if (active) setCurrentUser(normalizeUser(res?.user || res?.data?.user || res?.data || null))
+    }).catch(() => {
+      crmApi.clearToken()
+      if (active) setCurrentUser(null)
+    }).finally(() => { if (active) setAuthLoading(false) })
+    return () => { active = false; window.removeEventListener('crm:unauthorized', onUnauthorized) }
+  }, [])
 
-  // Quick Demo Login (admin, manager, rep, client)
-  const quickDemoLogin = (targetRole = 'admin') => {
-    const user = INITIAL_USERS.find(u => u.role === targetRole) || INITIAL_USERS[0]
-    setCurrentUser(user)
-    return user
-  }
-
-  // Regular login with API support + local fallback
   const login = async (email, password) => {
-    // Try live Laravel API first
     try {
-      const apiRes = await crmApi.login(email, password)
-      if (apiRes?.user) {
-        const fullUser = {
-          ...apiRes.user,
-          initials: apiRes.user.name.split(' ').map(n => n[0]).join('').slice(0, 2),
-        }
-        setCurrentUser(fullUser)
-        return { success: true, user: fullUser }
-      }
-    } catch {
-      // Fallback to local user matching
-    }
-
-    const matched = INITIAL_USERS.find(u => u.email.toLowerCase() === email.toLowerCase().trim())
-    if (matched) {
-      setCurrentUser(matched)
-      return { success: true, user: matched }
-    }
-
-    // Role inference fallback
-    const isClient = email.toLowerCase().includes('client') || email.toLowerCase().includes('marocraft')
-    const isRep = email.toLowerCase().includes('rep') || email.toLowerCase().includes('commercial')
-    const isManager = email.toLowerCase().includes('manager')
-
-    let fallbackUser = INITIAL_USERS[0]
-    if (isClient) fallbackUser = INITIAL_USERS[4]
-    else if (isRep) fallbackUser = INITIAL_USERS[2]
-    else if (isManager) fallbackUser = INITIAL_USERS[1]
-
-    const customUser = {
-      ...fallbackUser,
-      email,
-      name: email.split('@')[0].replace('.', ' ').replace(/\b\w/g, l => l.toUpperCase()),
-    }
-    setCurrentUser(customUser)
-    return { success: true, user: customUser }
-  }
-
-  // Switch Role inside CRM (Admin ⇄ Manager ⇄ Rep ⇄ Client)
-  const switchRole = (newRole) => {
-    const user = INITIAL_USERS.find(u => u.role === newRole)
-    if (user) {
+      const response = await crmApi.login(email, password)
+      const user = normalizeUser(response?.user || response?.data?.user)
+      if (!response?.token || !user) throw new Error('The server did not return a valid session.')
       setCurrentUser(user)
+      return { success: true, user }
+    } catch (error) {
+      crmApi.clearToken()
+      setCurrentUser(null)
+      return { success: false, message: error.message || 'Unable to sign in.' }
     }
   }
 
-  const logout = () => {
-    crmApi.logout().catch(() => {})
+  const logout = async () => {
+    try { await crmApi.logout() } catch { crmApi.clearToken() }
     setCurrentUser(null)
   }
 
-  return (
-    <AuthContext.Provider
-      value={{
-        currentUser,
-        isAuthenticated,
-        role,
-        login,
-        quickDemoLogin,
-        switchRole,
-        logout,
-        users: INITIAL_USERS,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  )
+  const role = currentUser?.role || null
+  return <AuthContext.Provider value={{ currentUser, authLoading, isAuthenticated: Boolean(currentUser), role, login, logout, users: [] }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider')
   return context
 }

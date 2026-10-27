@@ -11,6 +11,7 @@ use App\Models\Deal;
 use App\Models\Quote;
 use App\Models\QuoteItem;
 use App\Models\Activity;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
@@ -80,9 +81,17 @@ class DatabaseSeeder extends Seeder
             'email' => 'contact@marocraft.ma',
             'website' => 'https://marocraft.ma',
             'status' => 'Active',
+            'tier' => 'Tier A',
             'primary_contact' => 'Omar Kabbaj',
+            'ice' => '001524398000045',
+            'if_number' => '40283719',
+            'rc_number' => '128490 Casablanca',
+            'patente' => '34281900',
             'notes' => 'Leader in artisanal exports. Looking to automate enterprise ERP workflows and lead pipeline.',
         ]);
+
+        // Link client user to MaroCraft account
+        $client->update(['account_id' => $acc1->id]);
 
         $acc2 = Account::create([
             'name' => 'Atlas Logistics SA',
@@ -93,7 +102,12 @@ class DatabaseSeeder extends Seeder
             'email' => 'operations@atlaslogistics.ma',
             'website' => 'https://atlaslogistics.ma',
             'status' => 'Active',
+            'tier' => 'Tier A',
             'primary_contact' => 'Salma Tazi',
+            'ice' => '002891345000067',
+            'if_number' => '51928472',
+            'rc_number' => '89234 Tanger',
+            'patente' => '41029384',
             'notes' => 'Operating multimodal transit across Morocco and Europe. Needs automated dispatch bots.',
         ]);
 
@@ -106,7 +120,12 @@ class DatabaseSeeder extends Seeder
             'email' => 'directeur@maghrebfood.ma',
             'website' => 'https://maghrebfood.ma',
             'status' => 'Active',
+            'tier' => 'Tier B',
             'primary_contact' => 'Hassan Amrani',
+            'ice' => '003182940000088',
+            'if_number' => '62839102',
+            'rc_number' => '45123 Agadir',
+            'patente' => '29384019',
             'notes' => 'Distributes to 2,400+ hypermarkets. Seeking WhatsApp B2B order taking agent.',
         ]);
 
@@ -119,7 +138,12 @@ class DatabaseSeeder extends Seeder
             'email' => 'sales@greentech.ma',
             'website' => 'https://greentech.ma',
             'status' => 'Prospect',
+            'tier' => 'Tier B',
             'primary_contact' => 'Nadia Berrada',
+            'ice' => '004928172000012',
+            'if_number' => '71829304',
+            'rc_number' => '67891 Rabat',
+            'patente' => '18293048',
             'notes' => 'Solar installations provider. Evaluating predictive customer churn modules.',
         ]);
 
@@ -269,7 +293,7 @@ class DatabaseSeeder extends Seeder
             'total_amount' => 205200.00,
             'currency' => 'MAD',
             'expiry_date' => now()->addDays(30),
-            'public_token' => 'token-marocraft-001',
+            'public_token' => Str::random(48),
             'notes' => 'Devis officiel pour solution ERP AI. Comprend 12 mois de maintenance prédictive.',
         ]);
 
@@ -314,7 +338,7 @@ class DatabaseSeeder extends Seeder
             'total_amount' => 96900.00,
             'currency' => 'MAD',
             'expiry_date' => now()->addDays(15),
-            'public_token' => 'token-atlas-002',
+            'public_token' => Str::random(48),
             'notes' => 'Remise spéciale partenaire logistique Tanger Med validée par Direction commerciale.',
         ]);
 
@@ -352,7 +376,7 @@ class DatabaseSeeder extends Seeder
             'total_amount' => 378000.00,
             'currency' => 'MAD',
             'expiry_date' => now()->addDays(45),
-            'public_token' => 'token-koutoubia-003',
+            'public_token' => Str::random(48),
             'client_signed_at' => now()->subDays(5),
             'client_signer_name' => 'Amine Filali (DG)',
             'client_po_number' => 'BC-2026-8891',

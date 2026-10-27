@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useCrm } from '../context/CrmContext'
 import { useAuth } from '../../context/AuthContext'
 import { useLanguage } from '../../context/LanguageContext'
+import PhoneInputField from '../../components/PhoneInputField'
 import {
   Target,
   Plus,
@@ -22,7 +23,8 @@ import {
   Users,
   X,
   ShieldCheck,
-  UserCheck
+  UserCheck,
+  User
 } from 'lucide-react'
 
 export default function CrmLeads() {
@@ -85,10 +87,12 @@ export default function CrmLeads() {
   // 2. Role-based scoping: Reps only see their assigned leads or unassigned inbound leads
   const filteredLeads = leads.filter(l => {
     if (role === 'rep') {
+      const currentUserId = currentUser?.id != null ? String(currentUser.id) : null
       const isAssignedToMe =
-        l.assignedTo === currentUser?.id ||
-        l.assignedToName?.toLowerCase().includes(currentUser?.name?.toLowerCase() || '') ||
-        !l.assignedTo
+        !l.assignedTo ||
+        (currentUserId && (String(l.assignedTo) === currentUserId || String(l.userId) === currentUserId || String(l.assignedToId) === currentUserId)) ||
+        (currentUser?.id != null && l.user_id === currentUser.id) ||
+        (currentUser?.name && l.assignedToName?.toLowerCase() === currentUser.name.toLowerCase())
       if (!isAssignedToMe) return false
     }
 
@@ -101,15 +105,16 @@ export default function CrmLeads() {
     return matchSearch && matchChannel && matchTemp
   })
 
-  const handleCreateLead = (e) => {
+  const handleCreateLead = async (e) => {
     e.preventDefault()
     if (!newLeadForm.companyName || !newLeadForm.contactName) return
 
-    addLead({
+    const created = await addLead({
       ...newLeadForm,
       assignedTo: currentUser?.id,
       assignedToName: currentUser?.name
     })
+    if (!created) return
     setIsAddLeadOpen(false)
     setNewLeadForm({
       companyName: '',
@@ -125,8 +130,8 @@ export default function CrmLeads() {
     setTimeout(() => setSuccessToast(null), 4000)
   }
 
-  const handleConvert = (leadId) => {
-    const res = convertLeadToDeal(leadId)
+  const handleConvert = async (leadId) => {
+    const res = await convertLeadToDeal(leadId)
     if (res) {
       setSuccessToast(`Lead successfully converted into Opportunity (${res.account.name})!`)
       setTimeout(() => setSuccessToast(null), 4000)
@@ -219,11 +224,12 @@ export default function CrmLeads() {
         {filteredLeads.map((lead) => {
           const isHot = lead.temperature === 'Hot'
           const isConverted = lead.status === 'Converted'
+          const isNew = lead.status?.toLowerCase() === 'new'
 
           return (
             <div
               key={lead.id}
-              className={`p-5 rounded-lg bg-white dark:bg-navy-900 border shadow-sm transition-all hover:shadow-md flex flex-col justify-between gap-4 ${
+              className={`relative p-5 rounded-lg bg-white dark:bg-navy-900 border shadow-sm transition-all hover:shadow-md flex flex-col justify-between gap-4 ${
                 isConverted
                   ? 'border-slate-200 dark:border-white/5 opacity-80'
                   : isHot
@@ -231,6 +237,15 @@ export default function CrmLeads() {
                   : 'border-slate-200 dark:border-white/10'
               }`}
             >
+              {/* Red NEW Corner Badge */}
+              {isNew && (
+                <div className="absolute -top-2.5 -right-2.5 rtl:-right-auto rtl:-left-2.5 z-20 pointer-events-none">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider shadow-md shadow-red-600/40 ring-2 ring-white dark:ring-navy-900 animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                    NEW
+                  </span>
+                </div>
+              )}
               <div className="space-y-3">
                 {/* Header: Company & AI Score Badge */}
                 <div className="flex items-start justify-between gap-3">
@@ -276,6 +291,21 @@ export default function CrmLeads() {
                       {lead.email}
                     </span>
                   </div>
+                </div>
+
+                {/* Lead Assignment */}
+                <div className="flex items-center justify-between text-[11px] px-1 text-slate-500 dark:text-slate-400">
+                  <span>{lang === 'ar' ? 'المسؤول التجاري:' : 'Assigned Rep:'}</span>
+                  {lead.assignedToName ? (
+                    <span className="inline-flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-200">
+                      <User className="h-3 w-3 text-brand-600" />
+                      <span>{lead.assignedToName}</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800/40">
+                      {lang === 'ar' ? 'وارد غير معين' : 'Unassigned / Inbound'}
+                    </span>
+                  )}
                 </div>
 
                 {/* AI Rationale & Advice */}
@@ -383,12 +413,10 @@ export default function CrmLeads() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
-                  <input
-                    type="tel"
-                    placeholder="+212 6 61 XX XX XX"
+                  <PhoneInputField
                     value={newLeadForm.phone}
-                    onChange={(e) => setNewLeadForm({ ...newLeadForm, phone: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-500"
+                    onChange={(phone) => setNewLeadForm({ ...newLeadForm, phone })}
+                    defaultCountryCode="MA"
                   />
                 </div>
                 <div>

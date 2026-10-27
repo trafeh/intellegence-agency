@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>دليل شامل لنظام Intelligence Sales CRM بالدارجة المغربية</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800&family=Inter:wght@400;600;700&display=swap');
+
+  @page {
+    size: A4;
+    margin: 18mm 15mm 20mm 15mm;
+    @bottom-center {
+      content: "صفحة " counter(page) " من " counter(pages);
+      font-family: 'Cairo', sans-serif;
+      font-size: 9pt;
+      color: #64748b;
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body {
+    font-family: 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, Arial, sans-serif;
+    line-height: 1.7;
+    color: #1e293b;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+    font-size: 11pt;
+  }
+
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .avoid-break {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Cover Page */
+  .cover {
+    height: 100vh;
+    min-height: 270mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 30mm 15mm 20mm 15mm;
+    background: linear-gradient(135deg, #050b16 0%, #0a1329 50%, #1e3a8a 100%);
+    color: #ffffff;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cover::after {
+    content: "";
+    position: absolute;
+    top: -100px;
+    left: -100px;
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.3) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+
+  .cover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    padding-bottom: 20px;
+  }
+
+  .badge-tag {
+    background: rgba(37, 99, 235, 0.25);
+    border: 1px solid rgba(96, 165, 250, 0.4);
+    color: #93c5fd;
+    padding: 6px 16px;
+    border-radius: 50px;
+    font-size: 11pt;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .cover-title-box {
+    margin: auto 0;
+  }
+
+  .cover-subtitle {
+    color: #60a5fa;
+    font-size: 14pt;
+    font-weight: 700;
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+  }
+
+  .cover-title {
+    font-size: 32pt;
+    font-weight: 900;
+    line-height: 1.25;
+    margin: 0 0 20px 0;
+    color: #ffffff;
+  }
+
+  .cover-title span {
+    color: #38bdf8;
+  }
+
+  .cover-desc {
+    font-size: 13pt;
+    color: #cbd5e1;
+    max-width: 650px;
+    line-height: 1.8;
+  }
+
+  .cover-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    padding-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 10pt;
+    color: #94a3b8;
+  }
+
+  /* Content Styles */
+  h1, h2, h3, h4 {
+    font-family: 'Cairo', sans-serif;
+    color: #0f172a;
+    font-weight: 800;
+  }
+
+  h1 {
+    font-size: 20pt;
+    border-bottom: 3px solid #2563eb;
+    padding-bottom: 8px;
+    margin-top: 0;
+    margin-bottom: 16px;
+    color: #1e3a8a;
+  }
+
+  h2 {
+    font-size: 15pt;
+    margin-top: 22px;
+    margin-bottom: 12px;
+    color: #1e40af;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  h3 {
+    font-size: 12.5pt;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    color: #0f172a;
+  }
+
+  p {
+    margin-top: 0;
+    margin-bottom: 10px;
+    text-align: justify;
+  }
+
+  /* Cards & Boxes */
+  .box {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 14px;
+  }
+
+  .box-blue {
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-right: 5px solid #2563eb;
+  }
+
+  .box-amber {
+    background-color: #fffbeb;
+    border: 1px solid #fde68a;
+    border-right: 5px solid #d97706;
+  }
+
+  .box-emerald {
+    background-color: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-right: 5px solid #059669;
+  }
+
+  .box-purple {
+    background-color: #faf5ff;
+    border: 1px solid #e9d5ff;
+    border-right: 5px solid #7e22ce;
+  }
+
+  .box-rose {
+    background-color: #fff1f2;
+    border: 1px solid #fecdd3;
+    border-right: 5px solid #e11d48;
+  }
+
+  /* Role Badges */
+  .role-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 9pt;
+    font-weight: 700;
+  }
+  .role-admin { background-color: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; }
+  .role-manager { background-color: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+  .role-rep { background-color: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+  .role-client { background-color: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    margin-bottom: 16px;
+    font-size: 10pt;
+  }
+
+  th {
+    background-color: #1e3a8a;
+    color: #ffffff;
+    font-weight: 700;
+    text-align: right;
+    padding: 8px 12px;
+    border: 1px solid #1e3a8a;
+  }
+
+  td {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    text-align: right;
+  }
+
+  tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  /* Step by Step Flow */
+  .step-card {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+
+  .step-number {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #2563eb;
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 12pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .step-content {
+    flex: 1;
+  }
+
+  .step-title {
+    font-weight: 800;
+    font-size: 11pt;
+    color: #0f172a;
+    margin-bottom: 4px;
+  }
+
+  .step-desc {
+    font-size: 10pt;
+    color: #475569;
+    margin: 0;
+  }
+
+  /* Highlighting */
+  strong {
+    color: #0f172a;
+    font-weight: 700;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .kpi-card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+
+  .kpi-val {
+    font-size: 16pt;
+    font-weight: 900;
+    color: #2563eb;
+  }
+
+  .kpi-lbl {
+    font-size: 9pt;
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  ul, ol {
+    margin-top: 4px;
+    margin-bottom: 12px;
+    padding-right: 20px;
+  }
+
+  li {
+    margin-bottom: 6px;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 7px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: #334155;
+    margin: 0 2px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ========================================== -->
+<!-- 1. COVER PAGE                              -->
+<!-- ========================================== -->
+<div class="cover">
+  <div class="cover-header">
+    <div style="font-weight: 900; font-size: 16pt; letter-spacing: 1px;">INTELLIGENCE SALES CRM</div>
+    <div class="badge-tag">النسخة المغربية الرسمية 2026</div>
+  </div>
+
+  <div class="cover-title-box">
+    <div class="cover-subtitle">الدليل الشامل بالدارجة المغربية • GUIDE COMPLET EN DARIJA</div>
+    <h1 class="cover-title">كيفاش كيخدم <span>Intelligence Sales</span> من الألف إلى الياء؟</h1>
+    <p class="cover-desc">
+      شرح مفصل ومبسط لأي حاجة فـ الـ SaaS التجاري: الأدوار الأربعة (Admin, Manager, Rep, Client)، 
+      رحلة البيع خطوة بخطوة من إنشاء حساب العميل حتى كيتسد الـ Deal وتدخل الفلوس، 
+      نظام عروض الأسعار (Devis)، سقف الخصم (15%)، محرك المتابعة (قاعدة الـ 7 أيام)، ووكلاء الذكاء الاصطناعي السبعة.
+    </p>
+  </div>
+
+  <div class="cover-footer">
+    <div>إعداد وتطوير: فريق هندسة النظم التجارية (Intelligence Agency)</div>
+    <div>العملة: الدرهم المغربي (MAD) • الضريبة: TVA 20%</div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ========================================== -->
+<!-- 2. INTRODUCTION & CORE VISION              -->
+<!-- ========================================== -->
+<h1>1. شنو هو Intelligence Sales؟ وعلاش تدار هاد السيستيم؟</h1>
+
+<div class="box box-blue">
+  <p style="margin: 0; font-size: 11pt;">
+    <strong>التعريف بالدارجة:</strong> هاد السيستيم ماشي مجرد أكسيل ولا جدول عادي، هو <strong>نظام تشغيل تجاري متكامل (Commercial Operating System)</strong> مصاوب خصيصاً للشركات المغربية اللي كتبيع B2B (شركة لشركة) وعندها فريق ديال البياعة، صفقات كبيرة، ومشاريع كتحتاج للمتابعة والمفاوضات.
+  </p>
+</div>
+
+<h2>علاش بزاف ديال الشركات فالمغرب كيضيعو الصفقات؟</h2>
+<p>
+  الإحصائيات كتبين بلي <strong>أكثر من 80% ديال الصفقات فالمغرب كتضيع ماشي حيت المنتوج خايب</strong>، ولكن بسباب 3 ديال المشاكل كبار كيعاني منهم البيزنس المغربي:
+</p>
+<ol>
+  <li><strong>مشكل الروطار فـ Devis:</strong> العميل كيطلب عرض سعر (Devis)، والكوميرسيال كيتعطل عليه 3 ولا 4 أيام باش يصاوبو ويحسب الـ TVA، وفاش كيوصلو كيكون العميل مشا شرا من عند المنافس.</li>
+  <li><strong>مشكل قلة المتابعة والنسيان (Oubli des Relances):</strong> البائع كيعيط للزبون مرة وحدة، وفاش الزبون كيقوليه «صيفط ليا Devis وغادي نجاوبك»، البائع كينساه وكيخليه دايز، وما كيعاودش يتصل بيه. هادشي كيتسمى فـ السيستيم ديالنا <em>الصفقات الراكدة (Dormant Deals)</em>.</li>
+  <li><strong>الفوضى فـ الخصومات (Remises):</strong> كل بائع كينقص فالثمن على راسو باش يسد الصفقة بزربة، والشركة فالأخير كتلقى راسها ما رابحة والو ولا خاسرة فـ الهامش الربحي (Marge).</li>
+</ol>
+
+<div class="box box-amber">
+  <strong>الحل اللي كيقدمو Intelligence Sales:</strong>
+  سيستيم ذكي ومؤتمت كيتبع كل مليم، كيفرض نظام صارم فالخصومات، كينبه البائع والمدير يلا الصفقة وقفات أكثر من 7 أيام بلا حركة، وكيعطي للزبون فضاء خاص بيه (Espace Client) باش يراجع Devis ويوقعو مباشرة بالتيليفون ولا البيسي.
+</div>
+
+<h2>الخصوصية المغربية فـ السيستيم (Made for Morocco)</h2>
+<p>السيستيم مبني من الأساس باش يحترم قوانين التجارة والبيزنس فالمغرب:</p>
+<ul>
+  <li><strong>الدرهم المغربي (MAD):</strong> كل الحسابات، الأهداف، والعمولات كتحسب بالدرهم.</li>
+  <li><strong>الضريبة على القيمة المضافة (TVA 20%):</strong> حساب أوتوماتيكي لقيمة الـ HT (خارج الضريبة) والـ TTC (شامل الضريبة).</li>
+  <li><strong>المعرفات القانونية للشركات:</strong> حقول مخصصة لـ الـ <strong>ICE</strong> (المعرف الموحد للمقاولة - 15 رقم)، الـ <strong>RC</strong> (السجل التجاري)، الـ <strong>IF</strong> (المعرف الضريبي)، والـ <strong>Patente</strong>.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<!-- ========================================== -->
+<!-- 3. THE 4 ROLES & PERMISSIONS MATRIX        -->
+<!-- ========================================== -->
+<h1>2. الأدوار الأربعة (The 4 Roles) وصلاحيات كل واحد فـ السيستيم</h1>
+
+<p>
+  فـ أي سيستيم احترافي، ما يمكنش كلشي يشوف كلشي. السيستيم ديالنا مقسم على <strong>4 ديال الأدوار واضحة وصارمة</strong> باش نحميو الأسرار التجارية ديال الشركة وكل موظف يركز فخدمتو:
+</p>
+
+<div class="box box-purple avoid-break">
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h3 style="margin: 0; color: #6b21a8;">الدور 1: المدير العام ومسؤول النمو (Admin / CRO)</h3>
+    <span class="role-pill role-admin">Admin / CRO</span>
+  </div>
+  <p style="margin-top: 8px;"><strong>المثال فـ السيستيم:</strong> Karim Tazi (<code>admin@intelligencesales.com</code>)</p>
+  <p><strong>شكون هو؟</strong> هو مول الشركة، المدير العام (DG)، ولا الـ Chief Revenue Officer المسؤولة على كل الفلوس اللي كيدخلو.</p>
+  <p><strong>الصلاحيات ديالو:</strong></p>
+  <ul>
+    <li>عندو الحق يشوف كلشي: صفقات الشركة كاملة، أرقام المبيعات، ومداخيل كل بائع.</li>
+    <li>يقدر يوافق على أي خصم (Discount Approval) حتى يلا كان فايت 15%.</li>
+    <li>هو الوحيد (هو والـ Director) اللي عندو الحق يدخل لـ <strong>إعدادات النظام (Settings / Paramètres)</strong> باش يبدل نسبة الضريبة (TVA 20%)، عملة السيستيم (MAD)، واسم الشركة.</li>
+    <li>عندو زر <strong>«+ New»</strong> فالنافبار باش يخلق أي صفقة، زبون، Devis، أو نشاط.</li>
+  </ul>
+</div>
+
+<div class="box box-blue avoid-break">
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h3 style="margin: 0; color: #1e40af;">الدور 2: المدير التجاري (Sales Manager)</h3>
+    <span class="role-pill role-manager">Sales Manager</span>
+  </div>
+  <p style="margin-top: 8px;"><strong>المثال فـ السيستيم:</strong> Sofia Benali (<code>manager@intelligencesales.com</code>)</p>
+  <p><strong>شكون هو؟</strong> هو Directeur Commercial اللي كيقود فرقة البياعة، كيراقب الأداء ديالهم، وكيعاونهم فالمفاوضات الصعيبة.</p>
+  <p><strong>الصلاحيات ديالو:</strong></p>
+  <ul>
+    <li>كيشوف صفقات البياعة كاملين فـ Pipeline، ويقدر يعاود يسند صفقة من بائع لبائع آخر.</li>
+    <li>عندو صفحة <strong>فريق المبيعات (Sales Team & Quotas)</strong> باش يراقب شكون وصل للهدف (Quota) وشكون باقي معطل.</li>
+    <li><strong>الموافقة على الخصومات (Discount Approvals):</strong> فاش كيكتب بائع عرض سعر فيه خصم كثر من 15%، السيستيم كيبلوكيه، والمدير كيوصلو إشعار باش يوافق (Approve) ولا يرفض (Reject).</li>
+    <li><strong>ما عندوش الحق</strong> يدخل لـ Settings المالية العامة ديال السيستيم (محمية للأدمن فقط).</li>
+  </ul>
+</div>
+
+<div class="box box-emerald avoid-break">
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h3 style="margin: 0; color: #065f46;">الدور 3: المندوب التجاري / البائع (Sales Rep / Commercial)</h3>
+    <span class="role-pill role-rep">Sales Rep</span>
+  </div>
+  <p style="margin-top: 8px;"><strong>المثال فـ السيستيم:</strong> Yassine Mansouri (rep1) و Mehdi Alaoui (rep2)</p>
+  <p><strong>شكون هو؟</strong> هو الكوميرسيال فالميدان، هو اللي كيجيب العملاء، كيعيط فالتيليفون، وكيزور الشركات باش يسد الصفقات.</p>
+  <p><strong>الصلاحيات ديالو (نظام الحماية Scoped Access):</strong></p>
+  <ul>
+    <li><strong>كيشوف فقط الصفقات والعملاء ديالو:</strong> ما كيشوفش صفقات زملاؤو فالفريق حفاظاً على المنافسة الشريفة وخصوصية المحفظة (Portefeuille).</li>
+    <li>كيشوف الـ Quota الشخصية ديالو (مثلاً 950,000 درهم فالثلاثي)، والعمولة ديالو (5%) كتحسب ليه أوتوماتيك فاش كيربح صفقات (Closed Won).</li>
+    <li>يقدر يدير خصم عادي حتى لـ 15% كحد أقصى. يلا بغا يدير كثر، السيستيم كيطلب ليه موافقة المدير.</li>
+    <li><strong>ممنوع عليه</strong> يدخل لصفحة الفريق Team، وممنوع يدخل لـ Settings.</li>
+  </ul>
+</div>
+
+<div class="box box-amber avoid-break">
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h3 style="margin: 0; color: #92400e;">الدور 4: الزبون (Client / Espace Client)</h3>
+    <span class="role-pill role-client">Espace Client</span>
+  </div>
+  <p style="margin-top: 8px;"><strong>المثال فـ السيستيم:</strong> Omar Kabbaj - Directeur Général ديال شركة MaroCraft Industries (<code>client@marocraft.ma</code>)</p>
+  <p><strong>شكون هو؟</strong> هو ممثل الشركة المشترية، اللي دخل يشوف العرض المالي ويوقع الصفقة.</p>
+  <p><strong>الصلاحيات ديالو (فضاء مغلق وآمن 100%):</strong></p>
+  <ul>
+    <li><strong>ما كيشوفش الكواليس نهائياً:</strong> ما عندوش الـ Pipeline، ما كيشوفش العملاء الآخرين، ما كيشوفش زر «+ New»، وما كيشوفش الـ Settings.</li>
+    <li>كيشوف فقط صفحة <strong>Mon Espace Client</strong> و <strong>عروض الأسعار الخاصة بشركتو (Mes Devis)</strong>.</li>
+    <li>يقدر يقرا Devis بالتفصيل، يشوف المنتجات، الضريبة، ويضغط على زر <strong>«قبول وتوقيع العرض»</strong>.</li>
+    <li>يقدر يتبع مراحل تنفيذ المشروع فـ <strong>Project Timeline</strong>.</li>
+  </ul>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ========================================== -->
+<!-- 4. COMPARISON MATRIX                       -->
+<!-- ========================================== -->
+<h2>جدول مقارنة الصلاحيات بين الأدوار الأربعة (Matrice des Droits)</h2>
+
+<table class="avoid-break">
+  <thead>
+    <tr>
+      <th>الميزة أو الشاشة</th>
+      <th style="text-align: center;">المدير العام (Admin)</th>
+      <th style="text-align: center;">المدير التجاري (Manager)</th>
+      <th style="text-align: center;">المندوب التجاري (Rep)</th>
+      <th style="text-align: center;">الزبون (Client)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Dashboard العام</strong></td>
+      <td style="text-align: center; color: green; font-weight: bold;">كامل (الشركة كاملة)</td>
+      <td style="text-align: center; color: green; font-weight: bold;">كامل (الفرقة كاملة)</td>
+      <td style="text-align: center; color: #2563eb; font-weight: bold;">خاص بيه فقط (Quota)</td>
+      <td style="text-align: center; color: #d97706; font-weight: bold;">فضاء الزبون فقط</td>
+    </tr>
+    <tr>
+      <td><strong>مسار الصفقات (Pipeline Kanban)</strong></td>
+      <td style="text-align: center; color: green; font-weight: bold;">جميع الصفقات</td>
+      <td style="text-align: center; color: green; font-weight: bold;">جميع الصفقات</td>
+      <td style="text-align: center; color: #2563eb; font-weight: bold;">صفقاته الخاصة فقط</td>
+      <td style="text-align: center; color: red;">ممنوع</td>
+    </tr>
+    <tr>
+      <td><strong>العملاء المحتملون (Leads)</strong></td>
+      <td style="text-align: center; color: green; font-weight: bold;">نعم + تعديل السكور</td>
+      <td style="text-align: center; color: green; font-weight: bold;">نعم + إعادة الإسناد</td>
+      <td style="text-align: center; color: #2563eb; font-weight: bold;">المسندة إليه فقط</td>
+      <td style="text-align: center; color: red;">ممنوع</td>
+    </tr>
+    <tr>
+      <td><strong>إنشاء وتعديل Devis</strong></td>
+      <td style="text-align: center; color: green; font-weight: bold;">نعم (بلا حدود)</td>
+      <td style="text-align: center; color: green; font-weight: bold;">نعم (بلا حدود)</td>
+      <td style="text-align: center; color: #2563eb; font-weight: bold;">نعم (خصم &le; 15%)</td>
+      <td style="text-align: center; color: red;">ممنوع (قراءة وتوقيع فقط)</td>
+    </tr>
+    <tr>
+      <td><strong>الموافقة على الخصومات (>15%)</strong></td>
+      <td style="text-align: center; color: green; font-weight: bold;">نعم (Approve / Reject)</td>
+      <td style="text-align: center; color: green; font-weight: bold;">نعم (Approve / Reject)</td>
+      <td style="text-align: center; color: red;">ممنوع (ينتظر الموافقة)</td>
+      <td style="text-align: center; color: red;">ممنوع</td>
+    </tr>
+    <tr>
+      <td><strong>متابعة الفريق والعمولات (Team)</strong></td>
+      <td style="text-align: center; color: green; font-weight: bold;">نعم</td>
+      <td style="text-align: center; color: green; font-weight: bold;">نعم</td>
+      <td style="text-align: center; color: red;">ممنوع</td>
+      <td style="text-align: center; color: red;">ممنوع</td>
+    </tr>
+    <tr>
+      <td><strong>إعدادات النظام (Settings)</strong></td>
+      <td style="text-align: center; color: green; font-weight: bold;">نعم</td>
+      <td style="text-align: center; color: red;">ممنوع</td>
+      <td style="text-align: center; color: red;">ممنوع</td>
+      <td style="text-align: center; color: red;">ممنوع</td>
+    </tr>
+    <tr>
+      <td><strong>زر «+ New» السريع فالنافبار</strong></td>
+      <td style="text-align: center; color: green; font-weight: bold;">نعم</td>
+      <td style="text-align: center; color: green; font-weight: bold;">نعم</td>
+      <td style="text-align: center; color: green; font-weight: bold;">نعم</td>
+      <td style="text-align: center; color: red;">ممنوع (مخفي للزبون)</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<!-- ========================================== -->
+<!-- 5. END-TO-END DEAL LIFECYCLE (A to Z)      -->
+<!-- ========================================== -->
+<h1>3. رحلة الصفقة خطوة بخطوة من البداية حتى كتدخل الفلوس (Lifecycle A-Z)</h1>
+
+<p>
+  كيفاش كتمشي المعاملة التجارية داخل السيستيم من النهار الأول اللي كنعرفو فيه الزبون حتى كيسني الشيك وكيتسد الـ Deal؟ 
+  هاد العملية كتدوز من <strong>8 ديال المراحل دقيقة ومتسلسلة</strong>:
+</p>
+
+<!-- Step 1 -->
+<div class="step-card avoid-break">
+  <div class="step-number">1</div>
+  <div class="step-content">
+    <div class="step-title">المرحلة الأولى: دخول العميل المحتمل (Lead Acquisition & Scoring)</div>
+    <p class="step-desc">
+      الزبون (مثلاً شركة MaroCraft Industries) كيعمر الفورم فالصفحة الرئيسية (Landing Page) ولا كيتصل بيه البائع مباشرة. 
+      كيتحط فـ السيستيم كـ <strong>Lead</strong>. فهاد اللحظة، كيخدم <strong>الوكيل الذكي (Lead Intelligence AI Agent)</strong> 
+      باش يعطيه سكور من 0 لـ 100 على حساب ميزانيتو، حجم شركتو، ومدى ملاءمتو لخدماتنا (ICP Fit).
+      <br>
+      • يلا كان السكور طالع (> 80) كيتصنف <strong>Hot Lead</strong> وخاص الكوميرسيال يعيط ليه فـ أقل من ساعتين!
+    </p>
+  </div>
+</div>
+
+<!-- Step 2 -->
+<div class="step-card avoid-break">
+  <div class="step-number">2</div>
+  <div class="step-content">
+    <div class="step-title">المرحلة الثانية: تأهيل الزبون وتسجيل الشركة (Account & Contacts)</div>
+    <p class="step-desc">
+      فاش كيتأكد البائع بلي هاد العميل معقول وباغي يشري، السيستيم كيحولو لـ <strong>Account رسمي</strong>.
+      هنا كيتسجلو المعلومات القانونية ديال الشركة:
+      <strong>الـ ICE</strong> (المعرف الموحد للمقاولة)، العنوان (Casablanca Ain Sebaa)، رقم الهاتف، والشخص المسؤول (Omar Kabbaj - Directeur Général).
+    </p>
+  </div>
+</div>
+
+<!-- Step 3 -->
+<div class="step-card avoid-break">
+  <div class="step-number">3</div>
+  <div class="step-content">
+    <div class="step-title">المرحلة الثالثة: فتح صفقة فـ لوحة الكانبان (Create Deal in Pipeline)</div>
+    <p class="step-desc">
+      البائع كيكليكي على «+ New Deal» وكيفتح صفقة جديدة بسميت الشركة (مثلاً: <em>Enterprise CRM & AI Pack لشركة MaroCraft</em>) 
+      بقيمة مبدئية <strong>240,000 درهم</strong>.
+      الصفقة كتبان فـ لوحة الكانبان (Kanban Board) فالمرحلة الأولى: <strong>Discovery (الاكتشاف)</strong>.
+    </p>
+  </div>
+</div>
+
+<!-- Step 4 -->
+<div class="step-card avoid-break">
+  <div class="step-number">4</div>
+  <div class="step-content">
+    <div class="step-title">المرحلة الرابعة: المتابعة وقاعدة الـ 7 أيام الصارمة (7-Day Inactivity Warning)</div>
+    <p class="step-desc">
+      يلا دازت صفقة وبقات 7 أيام بلا ما يسجل فيها البائع حتى مكالمة ولا إيميل، السيستيم أوتوماتيكياً كيدير عليها 
+      <strong>تنبيه بالأحمر (Alerte Dormant Deal)</strong> وكيطلع تنبيه للمدير التجاري فـ النافبار.
+      <br>
+      • <strong>محرك المتابعة (Moteur de Relance):</strong> بضغطة زر وحدة، الذكاء الاصطناعي كيولد مسودة رسالة WhatsApp احترافية 
+      ولا إيميل رسمي بالدارجة ولا الفرنسية باش يعاود الكوميرسيال يحيي التواصل مع العميل بلا ما يضيع الوقت فالتفكير.
+    </p>
+  </div>
+</div>
+
+<!-- Step 5 -->
+<div class="step-card avoid-break">
+  <div class="step-number">5</div>
+  <div class="step-content">
+    <div class="step-title">المرحلة الخامسة: تحرير عرض السعر الرسمي (Generate Quotation / Devis)</div>
+    <p class="step-desc">
+      البائع كيدخل لصفحة عروض الأسعار (Quotes) وكيصاوب Devis رسمي مرقم (مثلاً: <code>DEV-2026-0042</code>):
+      <br>
+      • كيعزل المنتجات (رخص البرمجيات، أتعاب التركيب، الدعم السنوي).
+      <br>
+      • السيستيم كيحسب المجموع الخام (Montant Brut)، الـ TVA 20%، والمجموع الشامل للضريبة (TTC).
+      <br>
+      • البائع عندو إمكانية يدير خصم تجاري (Remise).
+    </p>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- Step 6 -->
+<div class="step-card avoid-break">
+  <div class="step-number">6</div>
+  <div class="step-content">
+    <div class="step-title">المرحلة السادسة: مسار الموافقة على الخصم (Discount Approval Workflow)</div>
+    <p class="step-desc">
+      هادي من أقوى وأهم الميزات فـ السيستيم لحماية أرباح الشركة:
+      <br>
+      <strong>الحالة أ (خصم عادي &le; 15%):</strong> Devis كيدوز مباشرة وكيولي واجد للإرسال.
+      <br>
+      <strong>الحالة ب (خصم استثنائي > 15%، مثلاً 20%):</strong> السيستيم <em>كيبلويكي Devis</em> أوتوماتيكياً فحالة <strong>Pending Approval</strong>.
+      البائع ما يقدرش يصيفطو للزبون! كيمشي إشعار مستعجل لـ Sofia Benali (المديرة التجارية) ولا Karim Tazi (الأدمن).
+      هما كيشوفو مبرر الخصم، ويقدرو يضغطو على <strong>«Approve»</strong> أو <strong>«Reject»</strong> مع كتابة السبب.
+    </p>
+  </div>
+</div>
+
+<!-- Step 7 -->
+<div class="step-card avoid-break">
+  <div class="step-number">7</div>
+  <div class="step-content">
+    <div class="step-title">المرحلة السابعة: إرسال Devis والتوقيع الإلكتروني من الزبون (Client Signing)</div>
+    <p class="step-desc">
+      فاش كيتوافق على Devis، السيستيم كيولد <strong>رابط عام آمن ومباشر (Public Token Link)</strong>.
+      الزبون (Omar Kabbaj) كيتوصل بالرابط، ولا كيدخل لـ <strong>Espace Client</strong> ديالو.
+      <br>
+      • كيشوف Devis نقي فيه Logo الشركة، الكاشي الرسمي، تفاصيل المبالغ والضريبة.
+      <br>
+      • كيكليكي على زر <strong>«قبول وتوقيع العرض (Accepter & Signer)»</strong>.
+    </p>
+  </div>
+</div>
+
+<!-- Step 8 -->
+<div class="step-card avoid-break">
+  <div class="step-number">8</div>
+  <div class="step-content">
+    <div class="step-title">المرحلة الثامنة: إغلاق الصفقة بالربح واحتساب العمولات (Closed Won & Commission)</div>
+    <p class="step-desc">
+      بمجرد ما كيسني الزبون Devis:
+      <br>
+      1. حالة Devis كترجع <strong>Accepted</strong>.
+      <br>
+      2. الصفقة فـ Pipeline كتحول أوتوماتيكياً لـ <strong>Closed Won (صفقة رابحة)</strong>.
+      <br>
+      3. المبلغ (مثلاً 240,000 درهم) كيتزاد فـ أرقام مبيعات البائع وكيرفع نسبة تحقيق الـ Quota ديالو.
+      <br>
+      4. السيستيم كيحسب ليه عمولتو (Commission 5% = 12,000 درهم) أوتوماتيكياً فصفحة الفريق!
+      <br>
+      5. كيبدا مباشرة تتبع تنفيذ المشروع فـ <strong>Project Timeline</strong>.
+    </p>
+  </div>
+</div>
+
+<div class="box box-rose avoid-break">
+  <strong>قاعدة ذهبية لمنع الغش فـ السيستيم:</strong>
+  ما يمكنش لأي بائع يجر الصفقة باليد لخانة <strong>Closed Won</strong> يلا ما كانش Devis رسمي مقبول ومسني من عند الزبون! 
+  السيستيم كيمنع تحويل أي صفقة لـ Won إلا بوجود إثبات مالي موثق.
+</div>
+
+<div class="page-break"></div>
+
+<!-- ========================================== -->
+<!-- 6. SCREEN-BY-SCREEN DEEP DIVE              -->
+<!-- ========================================== -->
+<h1>4. الشرح المفصل لكل شاشة وصفحة فـ السيستيم (Deep Dive)</h1>
+
+<p>
+  هنا غادي ندخلو لكل صفحة فـ القائمة الجانبية (Sidebar) ونشرحو شنو فيها، شنو كيبان للمستخدم، وكيفاش كيخدم كل زر:
+</p>
+
+<h2>1. لوحة التحكم والقيادة (Executive / Quota Dashboard)</h2>
+<p>
+  هادي أول صفحة كيشوفها المستخدم فاش كيدير Login. المحتوى ديالها كيتبدل 100% على حساب شكون اللي داخل:
+</p>
+<ul>
+  <li><strong>فاش كيدخل الأدمن ولا المدير:</strong> كيشوفو <strong>Executive Cockpit</strong> فيه رقم المعاملات الإجمالي للشركة (Chiffre d'Affaires)، مجموع الصفقات المفتوحة، نسبة النجاح (Win Rate)، ورسم بياني لتقدم المبيعات شهراً بشهر.</li>
+  <li><strong>فاش كيدخل المندوب (Rep):</strong> كيشوف <strong>Personal Quota Dashboard</strong>. كيبان ليه شحال باقي ليه باش يوصل للهدف ديالو، الصفقات اللي خاصو يتابعها اليوم، والعمولات اللي ربح حتى لدابا.</li>
+  <li><strong>فاش كيدخل الزبون (Client):</strong> كيشوف <strong>Mon Espace Client</strong>. كيبانو ليه فقط عروض الأسعار اللي مازال ما سناهمش، وحالة المشاريع اللي خدامة ليهم الشركة ديالنا.</li>
+</ul>
+
+<h2>2. مسار الصفقات التفاعلي (Deals Pipeline - Kanban Board)</h2>
+<p>
+  هادي هي قلب السيستيم فين كتحرك الصفقات بحال لعبة الشطرنج. الصفقات مقسمة لـ 5 ديال الأعمدة (Stages):
+</p>
+<ol>
+  <li><strong>Discovery (الاكتشاف):</strong> صفقة جديدة عاد كنتعرفو على مشكل الزبون.</li>
+  <li><strong>Qualification (التأهيل):</strong> تأكدنا بلي الزبون عندو الميزانية وهو صاحب القرار.</li>
+  <li><strong>Proposal (عرض السعر):</strong> صيفطنا ليه Devis رسمي وكنتسناو الرد.</li>
+  <li><strong>Negotiation (المفاوضات):</strong> الزبون كيناقش فالثمن، الشروط، ولا طريقة الدفع.</li>
+  <li><strong>Closed Won / Closed Lost (حسم الصفقة):</strong>
+    <br>• <strong>Won:</strong> ربحنا الصفقة وتسنات الكونطرا.
+    <br>• <strong>Lost:</strong> خسرات الصفقة (والسيستيم كيطلب ذكر سبب الخسارة باش يتعلم منو الذكاء الاصطناعي).
+  </li>
+</ol>
+<p>
+  <em>خاصية السحب والإفلات (Drag & Drop):</em> البائع كيقدر يجر البطاقة د الصفقة من مرحلة لمرحلة بسهولة بالماوس.
+</p>
+
+<h2>3. العملاء المحتملون (Leads & Inbound Intelligence)</h2>
+<p>
+  هنا كيتجمعو كل الناس اللي عبرو على اهتمام بالخدمات. السيستيم كيوفر:
+</p>
+<ul>
+  <li><strong>فلترة ذكية:</strong> عزل العملاء الجدد (New)، اللي تم الاتصال بيهم (Contacted)، المؤهلين (Qualified)، ولا غير المؤهلين (Unqualified).</li>
+  <li><strong>زر التقييم بالذكاء الاصطناعي (AI Lead Scoring):</strong> كيحسب سكور الجودة ديال العميل، وكيعطي نصائح للبائع شنو يقول ليه فالمكالمة.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>4. حسابات الشركات وجهات الاتصال (Accounts & Contacts)</h2>
+<p>
+  دليل الشركات والمؤسسات المغربية. كل شركة عندها بروفايل كامل فيه:
+</p>
+<ul>
+  <li><strong>الهوية القانونية:</strong> الـ ICE، الـ RC، والعنوان ورقم الهاتف الثابت.</li>
+  <li><strong>تصنيف الشركات (Tiers):</strong>
+    <span class="tag">Tier A: شركات كبرى ومجموعات عملاقة</span>
+    <span class="tag">Tier B: مقاولات متوسطة PME</span>
+    <span class="tag">Tier C: مقاولات صغرى TPE</span>
+  </li>
+  <li><strong>جهات الاتصال المرتبطة:</strong> أسماء المدراء، أرقام التيليفون ديالهم، وإيميلاتهم الشخصية.</li>
+</ul>
+
+<h2>5. محرك المتابعة وسجل الأنشطة (Follow-Up & Activity Engine)</h2>
+<p>
+  هنا فين كنحاربو برودة الصفقات. هاد الصفحة فيها قسمين أساسيين:
+</p>
+<ul>
+  <li><strong>تبويب الصفقات الراكدة (Dormant Deals > 7 Days):</strong> كيليستيك الصفقات اللي نساهم البائع وماتحركوش أكثر من سيمانة، مع زر سريع لكتابة رسالة المتابعة.</li>
+  <li><strong>سجل الأنشطة (Activity Timeline):</strong> تسجيل كل مكالمة هاتفية (Call)، اجتماع حضوري (Meeting)، رسالة واتساب (WhatsApp)، أو إيميل داز بين البائع والزبون مع الوقت والتاريخ.</li>
+</ul>
+
+<h2>6. فريق المبيعات والعمولات (Sales Team & Quotas)</h2>
+<p>
+  صفحة مخصصة للإدارة (Admin و Manager) لمتابعة الأداء البشري:
+</p>
+<ul>
+  <li>بطاقة لكل بائع (Yassine, Mehdi...) فيها صورتو، النمرة ديالو، والـ Quota المطلوبة منو.</li>
+  <li>شريط تقدم ملون كيبين شحال حقق بالنسبة المئوية (مثلاً: <code>82% من الهدف</code>).</li>
+  <li><strong>حساب العمولات الأوتوماتيكي:</strong> السيستيم كيحسب <strong>5% عمولة</strong> على أي درهم جابو البائع فصفقات Won، باش يعرف الكوميرسيال شحال كيتسال فالأخير د الشهر بلا صداع الرأس وبلا حسابات معقدة.</li>
+</ul>
+
+<h2>7. إعدادات النظام المالية (System Settings)</h2>
+<p>
+  صفحة مغلقة ومحمية كيدخل ليها فقط المدير العام (Admin):
+</p>
+<ul>
+  <li>تحديد نسبة الضريبة على القيمة المضافة: <strong>TVA 20%</strong> (المعيار المغربي).</li>
+  <li>تحديد سقف خصم البائع: <strong>15% Discount Threshold</strong> (أي درهم زايد خاصو موافقة).</li>
+  <li>تحديد مدة ركود الصفقات: <strong>7 أيام</strong>.</li>
+  <li>معلومات الشركة، الشعار، واسم المؤسسة اللي كيطلع فالترويسة ديال Devis.</li>
+</ul>
+
+<div class="page-break"></div>
+
+<!-- ========================================== -->
+<!-- 7. THE 7 AI AGENTS                        -->
+<!-- ========================================== -->
+<h1>5. الوكلاء الأذكياء السبعة (The 7 Sales AI Agents)</h1>
+
+<p>
+  السيستيم كيحتوي على <strong>7 وكلاء متخصصين بالذكاء الاصطناعي</strong> كيخدمو بحال مساعدين شخصيين للبياعة والمدراء 24/24 ساعة:
+</p>
+
+<div class="box box-blue avoid-break">
+  <strong>1. وكيل تأهيل وتقييم العملاء (Lead Intelligence Agent):</strong>
+  كيحلل معلومات العميل، كيشوف النشاط التجاري ديالو، وكيحدد واش مؤهل يشري والسكور المتوقع للصفقة.
+</div>
+
+<div class="box box-purple avoid-break">
+  <strong>2. وكيل تسريع الصفقات (Deal Flow & Pipeline Acceleration Agent):</strong>
+  كيراقب الصفقات فـ Pipeline، وكينبه البائع فاش كتحبس صفقة فشي مرحلة كثر من القياس باش يحركها.
+</div>
+
+<div class="box box-rose avoid-break">
+  <strong>3. محرك المتابعة الآلية (Follow-Up / Relance Engine Agent):</strong>
+  كيولد مسودات رسائل المتابعة (WhatsApp & Email) بالدارجة المغربية الفصيحة ولا الفرنسية الاحترافية باش يجاوب الزبون بزربة.
+</div>
+
+<div class="box box-emerald avoid-break">
+  <strong>4. وكيل صياغة عروض الأسعار الذكية (Smart Quotation Drafter):</strong>
+  كيقترح المنتجات المناسبة لحجم الزبون، وكيحدد الثمن المثالي اللي كيزيد حظوظ قبول Devis بلا ما يضيع هامش الربح.
+</div>
+
+<div class="box box-amber avoid-break">
+  <strong>5. مساعد الرد على الاعتراضات (Objection Handling Copilot):</strong>
+  فاش كيقول الزبون «الثمن غالي بزاف» ولا «المنافسين رخص منكم»، هاد الوكيل كيعطي للبائع الحجج والأدلة باش يقنع الزبون بالجودة والضمان.
+</div>
+
+<div class="box box-blue avoid-break">
+  <strong>6. مساعد المفاوضات والإغلاق (Closing & Negotiation Specialist):</strong>
+  كيعاون البائع فالمراحل النهائية باش يسد الصفقة، كيقترح تنازلات ذكية (بحال زيادة مدة الدعم عوض إنقاص الثمن).
+</div>
+
+<div class="box box-purple avoid-break">
+  <strong>7. وكيل التوقعات والتحليل المالي (Revenue Intelligence & Forecasting Agent):</strong>
+  كيحلل حركة المبيعات وكيعطي للمدير العام توقعات دقيقة للأرباح ومداخيل الشهر ولا الربع المقبل (Forecast).
+</div>
+
+<div class="page-break"></div>
+
+<!-- ========================================== -->
+<!-- 8. MOROCCAN CLOSING TIPS & BEST PRACTICES -->
+<!-- ========================================== -->
+<h1>6. نصائح ذهبية لنجاح فريق المبيعات بالمغرب (Best Practices)</h1>
+
+<div class="box box-emerald avoid-break">
+  <h3 style="margin-top: 0; color: #065f46;">نصيحة 1: السرعة فـ Devis هي نص البيعة</h3>
+  <p>
+    فالمغرب، الزبون فاش كيطلب Devis كيكون سخون وعندو الميزانية دابا. يلا صيفطتي ليه Devis فـ أقل من ساعتين عبر السيستيم، 
+    راك كتربح ثقتو وكتسبق كاع المنافسين اللي كيتعطلو أيام فالحسابات.
+  </p>
+</div>
+
+<div class="box box-blue avoid-break">
+  <h3 style="margin-top: 0; color: #1e40af;">نصيحة 2: ما تطلقش من الزبون بلا ما تسجل موعد المتابعة</h3>
+  <p>
+    كل مكالمة ولا اجتماع دار مع الزبون، خاص البائع يسجلو فـ <strong>Activity Engine</strong> ويكتب إشعار بالموعد المقبل. 
+    السيستيم غادي يفكرو أوتوماتيكياً قبل ما تدوز 7 أيام.
+  </p>
+</div>
+
+<div class="box box-amber avoid-break">
+  <h3 style="margin-top: 0; color: #92400e;">نصيحة 3: احترم سقف الخصم 15% وحافظ على قيمة المنتوج</h3>
+  <p>
+    الخصم الساهل كيبين للزبون بلي المنتوج منفوخ فالثمن. استعمل ميزات السيستيم باش تشرح للزبون بلي الخصومات الاستثنائية 
+    كتطلب موافقة الإدارة العامة، وهادشي كيعطي هيبة وقيمة للعرض ديالك.
+  </p>
+</div>
+
+<div class="box box-purple avoid-break">
+  <h3 style="margin-top: 0; color: #6b21a8;">نصيحة 4: استعمل رابط Espace Client باش تسد الصفقة فالبلاصة</h3>
+  <p>
+    عوض ما تطبع Devis وتسنّا الكوريي والتوصيل، صيفط للزبون رابط <strong>Espace Client</strong> فـ WhatsApp. 
+    الزبون كيشوف Devis فالتيليفون ديالو، كيكليكي على «قبول وتوقيع»، والصفقة كتسد ديك الساعة!
+  </p>
+</div>
+
+<!-- ========================================== -->
+<!-- 9. CONCLUSION & GLOSSARY                   -->
+<!-- ========================================== -->
+<div style="margin-top: 30px; padding: 20px; background: #0f172a; color: #ffffff; border-radius: 10px; text-align: center;" class="avoid-break">
+  <h2 style="color: #38bdf8; margin-top: 0;">الخلاصة: Intelligence Sales هو السلاح السري ديال شركتك</h2>
+  <p style="font-size: 11pt; color: #cbd5e1; line-height: 1.8; margin-bottom: 0;">
+    بهاد السيستيم، شركتك كتخرج من العشوائية والأوراق الضائعة لـ الاحترافية المطلقة. 
+    كل بائع عارف هدف ديالو وعمولتو، المدير مراقب كل صغيرة وكبيرة فـ Pipeline، 
+    والزبون كيلقى تجربة شراء عصرية، سريعة، ومريحة.
+  </p>
+  <div style="margin-top: 15px; font-weight: 800; font-size: 10pt; color: #94a3b8;">
+    INTELLIGENCE SALES CRM • ALL RIGHTS RESERVED 2026
+  </div>
+</div>
+
+</body>
+</html>

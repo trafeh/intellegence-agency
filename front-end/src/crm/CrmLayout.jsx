@@ -13,6 +13,7 @@ import {
   FileText,
   RefreshCw,
   BrainCircuit,
+  ClipboardList,
   Users,
   User,
   Settings,
@@ -38,8 +39,8 @@ import logoLight from '../assets/logolight.png'
 import logoDark from '../assets/logodark.png'
 
 export default function CrmLayout() {
-  const { currentUser, role, switchRole, logout } = useAuth()
-  const { deals, leads, quotes, activities } = useCrm()
+  const { currentUser, role, logout } = useAuth()
+  const { deals, leads, quotes, activities, mutationError, clearMutationError } = useCrm()
   const { lang, setLang } = useLanguage()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
@@ -171,8 +172,17 @@ export default function CrmLayout() {
         badge: 'PRO',
         badgeColor: 'bg-brand-600 text-white',
       },
-      // Team Management: Accessible by Manager and Admin only!
+      // Rep Activity Logs & Team Management: Accessible by Manager and Admin only!
       ...((role === 'admin' || role === 'manager' || role === 'director') ? [
+        {
+          to: '/crm/rep-logs',
+          labelEn: 'Rep Activity Logs',
+          labelFr: 'Journal des Commerciaux',
+          labelAr: 'سجل نشاط البائعين',
+          icon: ClipboardList,
+          badge: 'AUDIT',
+          badgeColor: 'bg-indigo-600 text-white',
+        },
         {
           to: '/crm/team',
           labelEn: 'Sales Team & Quotas',
@@ -244,66 +254,68 @@ export default function CrmLayout() {
 
         {/* Right Controls: Quick Add, Notifications, Lang, Theme, User */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Quick Create Dropdown */}
-          <div className="relative" ref={quickRef}>
-            <button
-              onClick={() => setQuickCreateOpen(prev => !prev)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/25 transition-all"
-            >
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">
-                {lang === 'ar' ? 'إضافة جديد' : lang === 'fr' ? 'Créer' : 'New'}
-              </span>
-            </button>
+          {/* Quick Create Dropdown - Internal Staff only */}
+          {role !== 'client' && (
+            <div className="relative" ref={quickRef}>
+              <button
+                onClick={() => setQuickCreateOpen(prev => !prev)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/25 transition-all cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">
+                  {lang === 'ar' ? 'إضافة جديد' : lang === 'fr' ? 'Créer' : 'New'}
+                </span>
+              </button>
 
-            {quickCreateOpen && (
-              <div className="absolute right-0 rtl:right-auto rtl:left-0 mt-2 w-56 p-1.5 rounded-lg bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/10 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  {lang === 'ar' ? 'إجراء سريع' : lang === 'fr' ? 'Création rapide' : 'Quick Actions'}
+              {quickCreateOpen && (
+                <div className="absolute right-0 rtl:right-auto rtl:left-0 mt-2 w-56 p-1.5 rounded-lg bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/10 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    {lang === 'ar' ? 'إجراء سريع' : lang === 'fr' ? 'Création rapide' : 'Quick Actions'}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setQuickCreateOpen(false)
+                      navigate('/crm/pipeline?action=new-deal')
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-brand-50 dark:hover:bg-brand-600/15 hover:text-brand-600 transition-colors cursor-pointer"
+                  >
+                    <Kanban className="h-4 w-4 text-brand-600" />
+                    <span>{lang === 'ar' ? 'صفقة جديدة' : lang === 'fr' ? 'Nouvelle Opportunité' : 'New Deal'}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setQuickCreateOpen(false)
+                      navigate('/crm/leads?action=new-lead')
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-brand-50 dark:hover:bg-brand-600/15 hover:text-brand-600 transition-colors cursor-pointer"
+                  >
+                    <Target className="h-4 w-4 text-emerald-600" />
+                    <span>{lang === 'ar' ? 'عميل محتمل جديد' : lang === 'fr' ? 'Nouveau Lead' : 'New Lead'}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setQuickCreateOpen(false)
+                      navigate('/crm/quotes?action=new-quote')
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-brand-50 dark:hover:bg-brand-600/15 hover:text-brand-600 transition-colors cursor-pointer"
+                  >
+                    <FileText className="h-4 w-4 text-amber-600" />
+                    <span>{lang === 'ar' ? 'عرض سعر جديد' : lang === 'fr' ? 'Nouveau Devis' : 'New Quotation'}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setQuickCreateOpen(false)
+                      navigate('/crm/activities?action=new-activity')
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-brand-50 dark:hover:bg-brand-600/15 hover:text-brand-600 transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className="h-4 w-4 text-purple-600" />
+                    <span>{lang === 'ar' ? 'تسجيل نشاط / مكالمة' : lang === 'fr' ? 'Enregistrer une activité' : 'Log Activity'}</span>
+                  </button>
                 </div>
-                <button
-                  onClick={() => {
-                    setQuickCreateOpen(false)
-                    navigate('/crm/pipeline?action=new-deal')
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-brand-50 dark:hover:bg-brand-600/15 hover:text-brand-600 transition-colors"
-                >
-                  <Kanban className="h-4 w-4 text-brand-600" />
-                  <span>{lang === 'ar' ? 'صفقة جديدة' : lang === 'fr' ? 'Nouvelle Opportunité' : 'New Deal'}</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setQuickCreateOpen(false)
-                    navigate('/crm/leads?action=new-lead')
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-brand-50 dark:hover:bg-brand-600/15 hover:text-brand-600 transition-colors"
-                >
-                  <Target className="h-4 w-4 text-emerald-600" />
-                  <span>{lang === 'ar' ? 'عميل محتمل جديد' : lang === 'fr' ? 'Nouveau Lead' : 'New Lead'}</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setQuickCreateOpen(false)
-                    navigate('/crm/quotes?action=new-quote')
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-brand-50 dark:hover:bg-brand-600/15 hover:text-brand-600 transition-colors"
-                >
-                  <FileText className="h-4 w-4 text-amber-600" />
-                  <span>{lang === 'ar' ? 'عرض سعر جديد' : lang === 'fr' ? 'Nouveau Devis' : 'New Quotation'}</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setQuickCreateOpen(false)
-                    navigate('/crm/activities?action=new-activity')
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-brand-50 dark:hover:bg-brand-600/15 hover:text-brand-600 transition-colors"
-                >
-                  <RefreshCw className="h-4 w-4 text-purple-600" />
-                  <span>{lang === 'ar' ? 'تسجيل نشاط / مكالمة' : lang === 'fr' ? 'Enregistrer une activité' : 'Log Activity'}</span>
-                </button>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* AI Notifications Alert Center */}
           <div className="relative" ref={notifRef}>
@@ -424,20 +436,22 @@ export default function CrmLayout() {
             )}
           </div>
 
-          {/* Settings Shortcut Button */}
-          <button
-            onClick={() => navigate('/crm/settings')}
-            className="p-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 transition-colors"
-            title={lang === 'ar' ? 'الإعدادات' : 'Settings'}
-            aria-label="Settings"
-          >
-            <Settings className="h-4 w-4" />
-          </button>
+          {/* Settings Shortcut Button - Admin & Director only */}
+          {(role === 'admin' || role === 'director') && (
+            <button
+              onClick={() => navigate('/crm/settings')}
+              className="p-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+              title={lang === 'ar' ? 'الإعدادات' : 'Settings'}
+              aria-label="Settings"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+          )}
 
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 transition-colors"
+            className="p-2 rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
             title="Toggle theme"
             aria-label="Toggle theme"
           >
@@ -448,17 +462,17 @@ export default function CrmLayout() {
           <div className="relative" ref={userRef}>
             <button
               onClick={() => setUserMenuOpen(prev => !prev)}
-              className="flex items-center gap-2 p-1 pl-2 rounded-full border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+              className="flex items-center gap-2 p-1 pl-2 rounded-full border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
             >
               <div className="text-right rtl:text-left hidden sm:flex flex-col">
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-100 leading-tight">
                   {currentUser?.name || 'Karim Tazi'}
                 </span>
-                <span className="text-[10px] text-slate-400 capitalize">
-                  {role === 'admin' || role === 'director' ? '👑 Admin / CRO' :
-                   role === 'manager' ? '👔 Sales Manager' :
-                   role === 'client' ? '🏢 Espace Client' :
-                   '🎯 Sales Rep'}
+                <span className="text-[10px] text-slate-400">
+                  {role === 'admin' || role === 'director' ? 'Admin / CRO' :
+                   role === 'manager' ? 'Sales Manager' :
+                   role === 'client' ? (lang === 'ar' ? 'فضاء الزبون' : 'Espace Client') :
+                   'Sales Rep'}
                 </span>
               </div>
               <div className="h-8 w-8 rounded-full bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-300 font-bold text-xs flex items-center justify-center border border-brand-500/30">
@@ -478,82 +492,12 @@ export default function CrmLayout() {
                       role === 'client' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' :
                       'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
                     }`}>
-                      {role === 'admin' || role === 'director' ? '👑 Admin / Director' :
-                       role === 'manager' ? '👔 Sales Manager' :
-                       role === 'client' ? '🏢 Espace Client' :
-                       '🎯 Commercial Rep'}
+                      {role === 'admin' || role === 'director' ? 'Admin / Director' :
+                       role === 'manager' ? 'Sales Manager' :
+                       role === 'client' ? (lang === 'ar' ? 'فضاء الزبون' : 'Espace Client') :
+                       'Commercial Rep'}
                     </span>
                   </div>
-                </div>
-
-                <div className="py-1">
-                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    {lang === 'ar' ? 'تبديل الدور (تجربة الصلاحيات)' : 'Switch Role (Test RBAC)'}
-                  </div>
-
-                  {/* 1. Admin */}
-                  <button
-                    onClick={() => {
-                      switchRole('admin')
-                      setUserMenuOpen(false)
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs transition-colors ${
-                      (role === 'admin' || role === 'director')
-                        ? 'bg-brand-50 dark:bg-brand-600/15 text-brand-600 font-bold'
-                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    <span>👑 {lang === 'ar' ? 'المدير العام (Karim Tazi)' : 'Admin / CRO (Karim Tazi)'}</span>
-                    {(role === 'admin' || role === 'director') && <CheckCircle2 className="h-3.5 w-3.5 text-brand-600" />}
-                  </button>
-
-                  {/* 2. Manager */}
-                  <button
-                    onClick={() => {
-                      switchRole('manager')
-                      setUserMenuOpen(false)
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs transition-colors ${
-                      role === 'manager'
-                        ? 'bg-blue-50 dark:bg-blue-600/15 text-blue-600 font-bold'
-                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    <span>👔 {lang === 'ar' ? 'مدير المبيعات (Sofia Benali)' : 'Sales Manager (Sofia)'}</span>
-                    {role === 'manager' && <CheckCircle2 className="h-3.5 w-3.5 text-blue-600" />}
-                  </button>
-
-                  {/* 3. Rep */}
-                  <button
-                    onClick={() => {
-                      switchRole('rep')
-                      setUserMenuOpen(false)
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs transition-colors ${
-                      role === 'rep'
-                        ? 'bg-emerald-50 dark:bg-emerald-600/15 text-emerald-600 font-bold'
-                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    <span>🎯 {lang === 'ar' ? 'بائع / مندوب (Yassine)' : 'Sales Rep (Yassine)'}</span>
-                    {role === 'rep' && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />}
-                  </button>
-
-                  {/* 4. Client */}
-                  <button
-                    onClick={() => {
-                      switchRole('client')
-                      setUserMenuOpen(false)
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs transition-colors ${
-                      role === 'client'
-                        ? 'bg-amber-50 dark:bg-amber-600/15 text-amber-600 font-bold'
-                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    <span>🏢 {lang === 'ar' ? 'الزبون (Omar Kabbaj)' : 'Client (Omar Kabbaj)'}</span>
-                    {role === 'client' && <CheckCircle2 className="h-3.5 w-3.5 text-amber-600" />}
-                  </button>
                 </div>
 
                 <div className="pt-1 border-t border-slate-100 dark:border-white/5">
@@ -697,24 +641,6 @@ export default function CrmLayout() {
                 </button>
               </div>
 
-              {/* Mobile Role Switcher */}
-              <div className="p-3 border-b border-slate-100 dark:border-white/5 flex gap-2">
-                <button
-                  onClick={() => switchRole('director')}
-                  className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold ${role === 'director' ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-600'
-                    }`}
-                >
-                  👑 Director
-                </button>
-                <button
-                  onClick={() => switchRole('rep')}
-                  className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold ${role === 'rep' ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-600'
-                    }`}
-                >
-                  🎯 Sales Rep
-                </button>
-              </div>
-
               <nav className="flex-1 px-3 py-4 space-y-2.5 overflow-y-auto">
                 {navItems.map((item) => {
                   const Icon = item.icon
@@ -759,6 +685,7 @@ export default function CrmLayout() {
         {/* Content Outlet View - 100% independent scroll */}
         <main className="flex-1 overflow-y-auto h-full min-h-0 bg-slate-50/60 dark:bg-navy-950/60 p-4 sm:p-5 lg:p-6">
           <div className="w-full">
+            {mutationError && <div role="alert" className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200"><span>{mutationError}</span><button type="button" onClick={clearMutationError} aria-label="Dismiss error" className="font-bold">×</button></div>}
             <Outlet />
           </div>
         </main>

@@ -18,9 +18,25 @@ class Account extends Model
         'email',
         'website',
         'status',
+        'tier',
         'primary_contact',
+        'ice',
+        'if_number',
+        'rc_number',
+        'patente',
         'notes',
+        'created_by',
     ];
+
+    public function users()
+    {
+        return $this->hasMany(User::class);
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
 
     public function deals()
     {

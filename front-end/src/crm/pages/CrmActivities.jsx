@@ -22,45 +22,22 @@ import {
 } from 'lucide-react'
 
 export default function CrmActivities() {
-  const { activities, deals, executeFollowUp, addActivity } = useCrm()
+  const { activities, deals, executeFollowUp, addActivity, loading, mutationError } = useCrm()
   const { currentUser, role } = useAuth()
   const { lang } = useLanguage()
 
   const [activeTab, setActiveTab] = useState(role === 'client' ? 'all' : 'dormant') // 'dormant' | 'all'
   const [isLogOpen, setIsLogOpen] = useState(false)
   const [successToast, setSuccessToast] = useState(null)
+  const [activityForm, setActivityForm] = useState({ type: 'call', title: '', dealId: '', contactName: '', date: new Date().toISOString().split('T')[0], time: '14:30', notes: '' })
+  const [generatedDrafts] = useState({
+    deal_2: "Dear Meryem, I hope this message finds you well. Following up on our discussion regarding the Intelligence Sales framework, have you had an opportunity to review quote # DEV-2026-088? We are available to organize a technical alignment demo at your convenience.",
+    deal_3: "Dear Mr. Bennani, I am following up regarding the 50 field licenses deployment scoping at LabelVie. Would you be available for a brief coordination session this Thursday at 11:00 AM?",
+  })
 
   // 1. CLIENT TIMELINE VIEW
   if (role === 'client') {
-    const clientActivities = [
-      {
-        id: 'cl_1',
-        title: 'Validation & Signature Électronique Initée',
-        date: '2026-10-16',
-        time: '18:30',
-        type: 'meeting',
-        notes: 'Devis Q-2026-001 (125 000 MAD TTC) généré avec succès pour MaroCraft Industries. Lien de signature sécurisé transmis.',
-        repName: 'Yassine Mansouri'
-      },
-      {
-        id: 'cl_2',
-        title: 'Réunion de Cadrage Technique & Architecture',
-        date: '2026-10-12',
-        time: '14:00',
-        type: 'call',
-        notes: 'Alignement sur les flux WhatsApp Business, synchronisation ERP et formation des équipes de vente MaroCraft.',
-        repName: 'Yassine Mansouri'
-      },
-      {
-        id: 'cl_3',
-        title: 'Émission de la Proposition Commerciale Initiale',
-        date: '2026-10-08',
-        time: '11:15',
-        type: 'call',
-        notes: 'Présentation des 7 Agents IA de Vente et remise commerciale stratégique de 10% accordée.',
-        repName: 'Yassine Mansouri'
-      }
-    ]
+    const clientAccountName = currentUser?.accountName || currentUser?.account?.name || 'Client Account'
 
     return (
       <div className="space-y-6 w-full max-w-5xl mx-auto">
@@ -80,38 +57,73 @@ export default function CrmActivities() {
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 text-xs font-bold border border-emerald-500/20 flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>Partenaire MaroCraft Industries</span>
+              <span>{clientAccountName}</span>
             </span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-navy-900 rounded-lg border border-slate-200 dark:border-white/10 shadow-sm p-6 space-y-4">
-          <div className="divide-y divide-slate-100 dark:divide-white/5">
-            {clientActivities.map((act) => (
-              <div key={act.id} className="py-4 flex items-start gap-4">
-                <div className="h-10 w-10 rounded-xl bg-brand-500/10 text-brand-600 flex items-center justify-center shrink-0">
-                  <FileText className="h-5 w-5" />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
-                      {act.title}
-                    </h4>
-                    <span className="text-xs text-slate-400 font-medium">
-                      {act.date} à {act.time}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300">
-                    {act.notes}
-                  </p>
-                  <div className="text-[11px] text-slate-400 pt-1">
-                    Intervenant : <strong className="text-brand-600">{act.repName}</strong> (Senior Strategic Rep)
-                  </div>
-                </div>
-              </div>
-            ))}
+        {mutationError && (
+          <div className="p-4 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
+            <span>{mutationError}</span>
           </div>
-        </div>
+        )}
+
+        {loading ? (
+          <div className="bg-white dark:bg-navy-900 rounded-lg border border-slate-200 dark:border-white/10 shadow-sm p-12 text-center text-slate-500 text-xs space-y-2">
+            <Clock className="h-6 w-6 text-brand-500 animate-spin mx-auto" />
+            <p>{lang === 'ar' ? 'جاري تحميل الأنشطة...' : 'Loading engagement history...'}</p>
+          </div>
+        ) : activities.length === 0 ? (
+          <div className="bg-white dark:bg-navy-900 rounded-lg border border-slate-200 dark:border-white/10 shadow-sm p-12 text-center text-slate-500 text-xs space-y-2">
+            <FileText className="h-8 w-8 text-slate-400 mx-auto" />
+            <p className="font-semibold text-slate-700 dark:text-slate-300">
+              {lang === 'ar' ? 'لا توجد أنشطة مسجلة حالياً' : 'No recorded activities found'}
+            </p>
+            <p className="text-slate-400">
+              {lang === 'ar'
+                ? 'لم يتم تسجيل أي اجتماعات أو مكالمات لحسابكم حتى الآن.'
+                : 'No meetings, calls, or milestones have been logged for your account yet.'}
+            </p>
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-navy-900 rounded-lg border border-slate-200 dark:border-white/10 shadow-sm p-6 space-y-4">
+            <div className="divide-y divide-slate-100 dark:divide-white/5">
+              {activities.map((act) => (
+                <div key={act.id} className="py-4 flex items-start gap-4">
+                  <div className="h-10 w-10 rounded-xl bg-brand-500/10 text-brand-600 flex items-center justify-center shrink-0">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                        {act.title}
+                      </h4>
+                      <span className="text-xs text-slate-400 font-medium">
+                        {act.date} {act.time ? `à ${act.time}` : ''}
+                      </span>
+                    </div>
+                    {act.notes && (
+                      <p className="text-xs text-slate-600 dark:text-slate-300">
+                        {act.notes}
+                      </p>
+                    )}
+                    <div className="text-[11px] text-slate-400 pt-1 flex items-center gap-2">
+                      <span>{lang === 'ar' ? 'المسؤول :' : 'Representative:'}</span>
+                      <strong className="text-brand-600 font-semibold">{act.repName}</strong>
+                      {act.dealTitle && (
+                        <>
+                          <span className="text-slate-300 dark:text-slate-600">•</span>
+                          <span className="text-slate-500">{act.dealTitle}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -129,34 +141,20 @@ export default function CrmActivities() {
   const dormantDeals = relevantDeals.filter(d => d.hasInactivityWarning || d.lastActivityDaysAgo >= 7)
 
   // Form for new activity
-  const [activityForm, setActivityForm] = useState({
-    type: 'call',
-    title: '',
-    dealId: relevantDeals[0]?.id || '',
-    contactName: '',
-    date: new Date().toISOString().split('T')[0],
-    time: '14:30',
-    notes: '',
-  })
-
   // Sample drafted message templates
-  const [generatedDrafts] = useState({
-    deal_2: "Dear Meryem, I hope this message finds you well. Following up on our discussion regarding the Intelligence Sales framework, have you had an opportunity to review quote # DEV-2026-088? We are available to organize a technical alignment demo at your convenience.",
-    deal_3: "Dear Mr. Bennani, I am following up regarding the 50 field licenses deployment scoping at LabelVie. Would you be available for a brief coordination session this Thursday at 11:00 AM?",
-  })
-
-  const handleSendFollowUp = (dealId, channel) => {
-    executeFollowUp(dealId, channel)
-    setSuccessToast(`${channel} follow-up approved and dispatched! Deal reactivated.`)
+  const handleSendFollowUp = async (dealId, channel) => {
+    const saved = await executeFollowUp(dealId, channel)
+    if (!saved) return
+    setSuccessToast(`${channel} follow-up activity logged. External delivery is not connected.`)
     setTimeout(() => setSuccessToast(null), 4000)
   }
 
-  const handleCreateActivity = (e) => {
+  const handleCreateActivity = async (e) => {
     e.preventDefault()
     if (!activityForm.title) return
 
     const deal = relevantDeals.find(d => d.id === activityForm.dealId) || deals.find(d => d.id === activityForm.dealId)
-    addActivity({
+    const saved = await addActivity({
       type: activityForm.type,
       title: activityForm.title,
       dealId: deal?.id || '',
@@ -166,6 +164,7 @@ export default function CrmActivities() {
       time: activityForm.time,
       notes: activityForm.notes,
     })
+    if (!saved) return
 
     setIsLogOpen(false)
     setActivityForm({

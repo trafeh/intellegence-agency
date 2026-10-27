@@ -29,6 +29,7 @@ class Quote extends Model
         'currency',
         'expiry_date',
         'public_token',
+        'public_token_revoked_at',
         'client_signed_at',
         'client_signer_name',
         'client_po_number',
@@ -45,6 +46,7 @@ class Quote extends Model
         'total_amount' => 'float',
         'expiry_date' => 'date',
         'client_signed_at' => 'datetime',
+        'public_token_revoked_at' => 'datetime',
     ];
 
     protected static function boot()

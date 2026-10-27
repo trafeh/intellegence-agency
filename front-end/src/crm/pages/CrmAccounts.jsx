@@ -42,13 +42,15 @@ export default function CrmAccounts() {
   }
 
   // Role Scoping for Accounts:
-  // - client: ONLY their own company (MaroCraft)
+  // - client: ONLY their own company
   // - rep: can toggle between their portfolio accounts and all accounts
   // - manager / admin: all accounts
   const filteredAccounts = accounts.filter(acc => {
     if (role === 'client') {
-      const clientCompany = currentUser?.company || 'MaroCraft'
-      const isClientAccount = acc.name.toLowerCase().includes(clientCompany.toLowerCase()) ||
+      const clientCompany = currentUser?.accountName || currentUser?.account?.name || ''
+      const isClientAccount =
+        (currentUser?.accountId && (String(acc.id) === String(currentUser.accountId) || String(acc.accountId) === String(currentUser.accountId))) ||
+        (clientCompany && acc.name.toLowerCase().includes(clientCompany.toLowerCase())) ||
         acc.contactEmail === currentUser?.email
       if (!isClientAccount) return false
     } else if (role === 'rep' && portfolioOnly) {
@@ -277,6 +279,26 @@ export default function CrmAccounts() {
                   <div className="text-base font-black text-slate-900 dark:text-white mt-0.5">
                     {formatMAD(selectedAccount.revenueLifetime)}
                   </div>
+                </div>
+              </div>
+
+              {/* Moroccan Fiscal Identifiers */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-md bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-white/5 text-xs">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">ICE (15 ch.)</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedAccount.ice || '001524398000045'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Identifiant Fiscal (IF)</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedAccount.ifNumber || '40283719'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Registre Commerce (RC)</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedAccount.rcNumber || '128490 Casa'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Patente</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{selectedAccount.patente || '34281900'}</span>
                 </div>
               </div>
 

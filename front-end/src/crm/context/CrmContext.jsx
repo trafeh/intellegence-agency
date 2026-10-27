@@ -1,10 +1,5 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 import {
-  INITIAL_DEALS,
-  INITIAL_LEADS,
-  INITIAL_ACCOUNTS,
-  INITIAL_QUOTES,
-  INITIAL_ACTIVITIES,
   PIPELINE_STAGES,
   AI_AGENTS_DEFINITIONS
 } from '../data/crmMockData'
@@ -23,10 +18,10 @@ function mapBackendDeal(d) {
     accountId: String(d.account_id || d.account?.id || ''),
     accountName: d.account?.name || 'Enterprise Client',
     contactName: d.account?.primary_contact || 'Decision Maker',
-    amount: Number(d.amount) || 100000,
+    amount: d.amount == null ? 0 : Number(d.amount),
     currency: 'MAD',
     stage: d.stage || 'leads',
-    probability: Number(d.probability) || 20,
+    probability: d.probability == null ? 0 : Number(d.probability),
     expectedClose: d.expected_close_date ? d.expected_close_date.split('T')[0] : '2026-11-30',
     ownerId: String(d.user_id || ''),
     ownerName: d.user?.name || 'Karim Tazi',
@@ -41,6 +36,7 @@ function mapBackendDeal(d) {
 function mapBackendLead(l) {
   return {
     id: String(l.id),
+    numericId: l.id,
     companyName: l.company,
     contactName: l.name,
     title: 'Director',
@@ -48,12 +44,18 @@ function mapBackendLead(l) {
     email: l.email || '',
     source: l.source || 'Website',
     city: 'Casablanca',
-    score: l.ai_score || 75,
-    temperature: (l.ai_score || 75) > 80 ? 'Hot' : 'Warm',
+    score: l.ai_score ?? 75,
+    aiScore: l.ai_score ?? 75,
+    temperature: (l.ai_score ?? 75) > 80 ? 'Hot' : 'Warm',
     status: l.status || 'New',
     estimatedValue: 120000,
     aiNotes: l.score_reason || 'AI scored lead.',
     createdAt: l.created_at ? l.created_at.split('T')[0] : '2026-10-16',
+    userId: l.user_id ? String(l.user_id) : null,
+    user_id: l.user_id ?? null,
+    assignedTo: l.user_id ? String(l.user_id) : null,
+    assignedToId: l.user_id ? String(l.user_id) : null,
+    assignedToName: l.user?.name || null,
   }
 }
 
@@ -65,12 +67,39 @@ function mapBackendAccount(a) {
     city: a.city || 'Casablanca',
     country: 'Morocco',
     creditLimit: 250000,
-    revenueLifetime: a.annual_revenue || '45,000,000 MAD',
+    revenueLifetime: a.annual_revenue || '0 MAD',
     contactName: a.primary_contact || 'Director',
     contactEmail: a.email || '',
     contactPhone: a.phone || '',
     status: a.status || 'Active',
-    dealsCount: a.deals_count || 1,
+    tier: a.tier || 'Tier B',
+    ice: a.ice || '',
+    ifNumber: a.if_number || '',
+    rcNumber: a.rc_number || '',
+    patente: a.patente || '',
+    dealsCount: a.deals_count ?? 0,
+  }
+}
+
+function mapBackendActivity(act) {
+  return {
+    id: String(act.id),
+    type: act.type || 'note',
+    title: act.title,
+    dealId: act.deal_id ? String(act.deal_id) : '',
+    dealTitle: act.deal?.title || 'Opportunité',
+    contactName: act.account?.primary_contact || act.lead?.name || 'Contact',
+    date: act.scheduled_at ? act.scheduled_at.split('T')[0] : new Date().toISOString().split('T')[0],
+    time: act.scheduled_at ? (act.scheduled_at.split('T')[1]?.slice(0, 5) || '12:00') : '12:00',
+    status: act.completed ? 'completed' : 'pending',
+    notes: act.description || '',
+    repName: act.user?.name || 'Commercial',
+    repId: act.user_id ? String(act.user_id) : '',
+    repRole: act.user?.role || 'rep',
+    accountName: act.account?.name || act.deal?.account?.name || '',
+    leadName: act.lead?.name || '',
+    leadCompany: act.lead?.company || '',
+    createdAt: act.created_at || act.scheduled_at || new Date().toISOString(),
   }
 }
 
@@ -87,447 +116,374 @@ function mapBackendQuote(q) {
     status: q.status || 'Draft',
     discountPercent: Number(q.discount_percent) || 0,
     requiresDirectorApproval: Number(q.discount_percent) > 15 && !q.discount_approved,
-    items: q.items && q.items.length > 0 ? q.items.map(it => ({
+    items: Array.isArray(q.items) ? q.items.map(it => ({
       description: it.description,
       qty: it.qty,
       unitPrice: it.unit_price,
       total: it.total
-    })) : [
-      { description: 'Licence Intelligence Sales', qty: 1, unitPrice: q.subtotal, total: q.subtotal }
-    ],
-    subtotal: Number(q.subtotal) || 100000,
+    })) : [],
+    subtotal: q.subtotal == null ? 0 : Number(q.subtotal),
     discountAmount: Number(q.discount_amount) || 0,
-    totalHT: Number(q.subtotal - q.discount_amount) || 100000,
-    tvaAmount: Number(q.tax_amount) || 20000,
-    totalTTC: Number(q.total_amount) || 120000,
+    totalHT: Number(q.subtotal || 0) - Number(q.discount_amount || 0),
+    tvaAmount: q.tax_amount == null ? 0 : Number(q.tax_amount),
+    totalTTC: q.total_amount == null ? 0 : Number(q.total_amount),
     ownerName: q.user?.name || 'Karim Tazi',
-    publicToken: q.public_token || 'token-marocraft-001',
+    publicToken: q.public_token || '',
+    publicTokenRevokedAt: q.public_token_revoked_at || null,
+    isRevoked: Boolean(q.public_token_revoked_at),
     clientSignedAt: q.client_signed_at,
     clientSignerName: q.client_signer_name,
     clientPoNumber: q.client_po_number,
   }
 }
 
+function reconcileQuote(q, previous = {}) {
+  const mapped = mapBackendQuote(q)
+  return { ...previous, ...mapped, items: Array.isArray(q.items) ? mapped.items : (previous.items || []) }
+}
+
 export function CrmProvider({ children }) {
-  const { currentUser, role } = useAuth()
+  const { currentUser } = useAuth()
   const [isBackendConnected, setIsBackendConnected] = useState(false)
+  const [mutationError, setMutationError] = useState('')
+  const [pendingMutations, setPendingMutations] = useState({})
+  const pendingRef = useRef(new Set())
+  const idempotencyKeysRef = useRef(new Map())
+  const idempotencyKeyFor = (operation, payload) => {
+    const fingerprint = `${operation}:${JSON.stringify(payload)}`
+    let key = idempotencyKeysRef.current.get(fingerprint)
+    if (!key) {
+      key = globalThis.crypto?.randomUUID?.() || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => {
+        const random = Math.floor(Math.random() * 16)
+        return (char === 'x' ? random : (random & 0x3) | 0x8).toString(16)
+      })
+      idempotencyKeysRef.current.set(fingerprint, key)
+    }
+    return {
+      key,
+      complete: () => idempotencyKeysRef.current.delete(fingerprint),
+    }
+  }
+  const mutate = async (key, operation) => {
+    if (pendingRef.current.has(key)) return null
+    pendingRef.current.add(key)
+    setPendingMutations(value => ({ ...value, [key]: true }))
+    setMutationError('')
+    try {
+      const result = await operation()
+      return result
+    } catch (error) {
+      setMutationError(error?.message || 'The request failed. Please try again.')
+      return null
+    } finally {
+      pendingRef.current.delete(key)
+      setPendingMutations(value => ({ ...value, [key]: false }))
+    }
+  }
+  const backendId = value => /^\d+$/.test(String(value ?? '')) && Number(value) > 0 ? Number(value) : null
 
   // Deals state
-  const [deals, setDeals] = useState(() => {
-    try {
-      const saved = localStorage.getItem('isales_deals')
-      return saved ? JSON.parse(saved) : INITIAL_DEALS
-    } catch {
-      return INITIAL_DEALS
-    }
-  })
+  const [deals, setDeals] = useState([])
 
   // Leads state
-  const [leads, setLeads] = useState(() => {
-    try {
-      const saved = localStorage.getItem('isales_leads')
-      return saved ? JSON.parse(saved) : INITIAL_LEADS
-    } catch {
-      return INITIAL_LEADS
-    }
-  })
+  const [leads, setLeads] = useState([])
 
   // Accounts state
-  const [accounts, setAccounts] = useState(() => {
-    try {
-      const saved = localStorage.getItem('isales_accounts')
-      return saved ? JSON.parse(saved) : INITIAL_ACCOUNTS
-    } catch {
-      return INITIAL_ACCOUNTS
-    }
-  })
+  const [accounts, setAccounts] = useState([])
 
   // Quotes state
-  const [quotes, setQuotes] = useState(() => {
-    try {
-      const saved = localStorage.getItem('isales_quotes')
-      return saved ? JSON.parse(saved) : INITIAL_QUOTES
-    } catch {
-      return INITIAL_QUOTES
-    }
-  })
+  const [quotes, setQuotes] = useState([])
+
+  // Users / Reps state
+  const [users, setUsers] = useState([])
 
   // Activities state
-  const [activities, setActivities] = useState(() => {
-    try {
-      const saved = localStorage.getItem('isales_activities')
-      return saved ? JSON.parse(saved) : INITIAL_ACTIVITIES
-    } catch {
-      return INITIAL_ACTIVITIES
-    }
-  })
+  const [activities, setActivities] = useState([])
+  const [loading, setLoading] = useState(true)
 
   // Filter mode for Rep: 'mine' or 'all'
   const [viewScope, setViewScope] = useState('all')
 
-  // --- Sync with Laravel Backend API on Mount ---
-  useEffect(() => {
-    let isMounted = true
+  // --- Sync with Laravel Backend API ---
+  const refreshData = useCallback(async () => {
+    if (!currentUser) return
+    setLoading(true)
+    try {
+      const isStaffManager = currentUser?.role === 'admin' || currentUser?.role === 'manager' || currentUser?.role === 'director'
+      const [dealsRes, leadsRes, accountsRes, quotesRes, activitiesRes, usersRes] = await Promise.all([
+        crmApi.getDeals(),
+        crmApi.getLeads(),
+        crmApi.getAccounts(),
+        crmApi.getQuotes(),
+        crmApi.getActivities(),
+        isStaffManager ? crmApi.getUsers().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+      ])
 
-    async function syncData() {
-      try {
-        const [dealsRes, leadsRes, accountsRes, quotesRes] = await Promise.all([
-          crmApi.getDeals().catch(() => null),
-          crmApi.getLeads().catch(() => null),
-          crmApi.getAccounts().catch(() => null),
-          crmApi.getQuotes().catch(() => null),
-        ])
-
-        if (!isMounted) return
-
-        if (dealsRes?.data && dealsRes.data.length > 0) {
-          setDeals(dealsRes.data.map(mapBackendDeal))
-          setIsBackendConnected(true)
-        }
-        if (leadsRes?.data && leadsRes.data.length > 0) {
-          setLeads(leadsRes.data.map(mapBackendLead))
-        }
-        if (accountsRes?.data && accountsRes.data.length > 0) {
-          setAccounts(accountsRes.data.map(mapBackendAccount))
-        }
-        if (quotesRes?.data && quotesRes.data.length > 0) {
-          setQuotes(quotesRes.data.map(mapBackendQuote))
-        }
-      } catch (err) {
-        console.warn('Backend sync error:', err.message)
-      }
+      setDeals((dealsRes?.data || []).map(mapBackendDeal))
+      setLeads((leadsRes?.data || []).map(mapBackendLead))
+      setAccounts((accountsRes?.data || []).map(mapBackendAccount))
+      setQuotes((quotesRes?.data || []).map(mapBackendQuote))
+      setActivities((activitiesRes?.data || []).map(mapBackendActivity))
+      setUsers(usersRes?.data || [])
+      setIsBackendConnected(true)
+      setMutationError('')
+    } catch (err) {
+      setIsBackendConnected(false)
+      setDeals([]); setLeads([]); setAccounts([]); setQuotes([]); setActivities([]); setUsers([])
+      setMutationError('CRM records could not be loaded from the server. Check your connection and access, then refresh.')
+    } finally {
+      setLoading(false)
     }
-
-    syncData()
-    return () => { isMounted = false }
-  }, [])
-
-  // Save to localStorage as resilient offline cache
-  useEffect(() => {
-    localStorage.setItem('isales_deals', JSON.stringify(deals))
-  }, [deals])
+  }, [currentUser])
 
   useEffect(() => {
-    localStorage.setItem('isales_leads', JSON.stringify(leads))
-  }, [leads])
+    refreshData()
+  }, [refreshData])
 
   useEffect(() => {
-    localStorage.setItem('isales_accounts', JSON.stringify(accounts))
-  }, [accounts])
-
-  useEffect(() => {
-    localStorage.setItem('isales_quotes', JSON.stringify(quotes))
-  }, [quotes])
-
-  useEffect(() => {
-    localStorage.setItem('isales_activities', JSON.stringify(activities))
-  }, [activities])
+    if (!currentUser) { setDeals([]); setLeads([]); setAccounts([]); setQuotes([]); setActivities([]); setUsers([]); setIsBackendConnected(false) }
+  }, [currentUser])
 
   // Move deal stage (e.g. in Kanban Drag & Drop)
-  const moveDealStage = (dealId, newStage, lostReason = null) => {
-    setDeals(prev =>
-      prev.map(deal => {
-        if (deal.id === dealId) {
-          const isWon = newStage === 'won'
-          const isLost = newStage === 'lost'
-          return {
-            ...deal,
-            stage: newStage,
-            probability: isWon ? 100 : isLost ? 0 : deal.probability,
-            lastActivityDaysAgo: 0,
-            hasInactivityWarning: false,
-          }
-        }
-        return deal
-      })
-    )
-
-    // Call Laravel API in background
-    crmApi.updateDealStage(dealId, newStage, lostReason).catch(err => {
-      console.warn('Failed to update stage on API:', err.message)
-    })
-  }
+  const moveDealStage = (dealId, newStage, lostReason = null) => mutate(`deal-stage-${dealId}`, async () => {
+    const id = backendId(dealId)
+    if (!id) throw new Error('This deal has no server ID and cannot be updated.')
+    const operation = idempotencyKeyFor('deal-stage', { id, newStage, lostReason })
+    const response = await crmApi.updateDealStage(id, newStage, lostReason, operation.key)
+    if (!response?.data?.id) throw new Error('The server did not confirm the deal update.')
+    operation.complete()
+    const confirmed = mapBackendDeal(response.data)
+    setDeals(previous => previous.map(deal => deal.id === String(dealId) ? confirmed : deal))
+    try {
+      const activitiesResponse = await crmApi.getActivities()
+      setActivities((activitiesResponse?.data || []).map(mapBackendActivity))
+    } catch {
+      setMutationError('Deal stage updated, but the activity list could not refresh. Reload CRM data to see the latest activity.')
+    }
+    return confirmed
+  })
 
   // Create new deal
-  const addDeal = (dealData) => {
-    const newDeal = {
-      id: `deal_${Date.now()}`,
+  const addDeal = dealData => mutate('create-deal', async () => {
+    const accountId = backendId(dealData.accountId)
+    if (!accountId) throw new Error('Select a valid server account before creating a deal.')
+    const payload = {
       title: dealData.title,
-      accountId: dealData.accountId || 'acc_1',
-      accountName: dealData.accountName || 'Partner Enterprise',
-      contactName: dealData.contactName || 'Procurement Director',
-      amount: Number(dealData.amount) || 100000,
-      currency: dealData.currency || 'MAD',
-      stage: dealData.stage || 'leads',
-      probability: Number(dealData.probability) || 20,
-      expectedClose: dealData.expectedClose || '2026-11-30',
-      ownerId: currentUser?.id || '1',
-      ownerName: currentUser?.name || 'Karim Tazi',
-      priority: dealData.priority || 'medium',
-      lastActivityDaysAgo: 0,
-      hasInactivityWarning: false,
-      aiRecommendation: 'Deal created. Schedule initial discovery call.',
-      products: dealData.products || ['Intelligence Sales Standard'],
+      account_id: accountId,
+      amount: Number(dealData.amount),
+      stage: dealData.stage,
+      probability: Number(dealData.probability),
+      expected_close_date: dealData.expectedClose,
+      products: dealData.products,
     }
-    setDeals(prev => [newDeal, ...prev])
+    if (dealData.userId) {
+      payload.user_id = backendId(dealData.userId)
+    }
+    const response = await crmApi.createDeal(payload)
+    if (!response?.data?.id) throw new Error('The server did not confirm deal creation.')
+    const confirmed = mapBackendDeal(response.data)
+    setDeals(previous => [confirmed, ...previous])
+    try {
+      const activitiesResponse = await crmApi.getActivities()
+      setActivities((activitiesResponse?.data || []).map(mapBackendActivity))
+    } catch {
+      // ignore
+    }
+    return confirmed
+  })
 
-    // Call Laravel API
-    crmApi.createDeal({
-      title: newDeal.title,
-      account_id: isNaN(newDeal.accountId) ? 1 : Number(newDeal.accountId),
-      amount: newDeal.amount,
-      stage: newDeal.stage,
-      probability: newDeal.probability,
-      expected_close_date: newDeal.expectedClose,
-      products: newDeal.products,
-    }).catch(err => console.warn('createDeal API error:', err.message))
+  // Update deal (e.g. reassign rep, edit deal info)
+  const updateDeal = (dealId, dealData) => mutate(`update-deal-${dealId}`, async () => {
+    const id = backendId(dealId)
+    if (!id) throw new Error('This deal has no server ID and cannot be updated.')
+    const payload = {}
+    if (dealData.title !== undefined) payload.title = dealData.title
+    if (dealData.amount !== undefined) payload.amount = Number(dealData.amount)
+    if (dealData.accountId !== undefined) payload.account_id = backendId(dealData.accountId)
+    if (dealData.probability !== undefined) payload.probability = Number(dealData.probability)
+    if (dealData.expectedClose !== undefined) payload.expected_close_date = dealData.expectedClose
+    if (dealData.products !== undefined) payload.products = dealData.products
+    if (dealData.userId !== undefined) payload.user_id = dealData.userId ? backendId(dealData.userId) : null
+    if (dealData.aiRecommendation !== undefined) payload.ai_recommendation = dealData.aiRecommendation
 
-    return newDeal
-  }
+    const response = await crmApi.updateDeal(id, payload)
+    if (!response?.data?.id) throw new Error('The server did not confirm the deal update.')
+    const confirmed = mapBackendDeal(response.data)
+    setDeals(previous => previous.map(deal => deal.id === String(dealId) ? confirmed : deal))
+    try {
+      const activitiesResponse = await crmApi.getActivities()
+      setActivities((activitiesResponse?.data || []).map(mapBackendActivity))
+    } catch {
+      // ignore
+    }
+    return confirmed
+  })
 
   // Convert Lead to Deal & Account
-  const convertLeadToDeal = (leadId) => {
-    const lead = leads.find(l => l.id === leadId)
-    if (!lead) return
-
-    const newAccount = {
-      id: `acc_${Date.now()}`,
-      name: lead.companyName,
-      industry: 'B2B Sector',
-      tier: lead.score > 80 ? 'Tier A' : 'Tier B',
-      city: lead.city,
-      country: 'Morocco',
-      creditLimit: 250000,
-      revenueLifetime: 0,
-      contactName: lead.contactName,
-      contactTitle: lead.title,
-      contactEmail: lead.email,
-      contactPhone: lead.phone,
-      status: 'Qualified Prospect Converted',
-      dealsCount: 1,
-    }
-    setAccounts(prev => [newAccount, ...prev])
-
-    const newDeal = {
-      id: `deal_${Date.now()}`,
-      title: `Commercial Opportunity - ${lead.companyName}`,
-      accountId: newAccount.id,
-      accountName: newAccount.name,
-      contactName: newAccount.contactName,
-      amount: lead.estimatedValue || 150000,
-      currency: 'MAD',
-      stage: 'qualification',
-      probability: 45,
-      expectedClose: '2026-11-20',
-      ownerId: currentUser?.id || '1',
-      ownerName: currentUser?.name || 'Karim Tazi',
-      priority: lead.temperature === 'Hot' ? 'high' : 'medium',
-      lastActivityDaysAgo: 0,
-      hasInactivityWarning: false,
-      aiRecommendation: `Qualified lead with score of ${lead.score}/100. Submit formal proposal within 5 days.`,
-      products: ['Intelligence Sales Advanced'],
-    }
-    setDeals(prev => [newDeal, ...prev])
-
-    setLeads(prev =>
-      prev.map(l => l.id === leadId ? { ...l, status: 'Converted' } : l)
-    )
-
-    // Call API conversion
-    if (!isNaN(leadId)) {
-      crmApi.convertLead(leadId, newDeal.amount, newDeal.title).catch(err => console.warn(err.message))
-    }
-
-    return { account: newAccount, deal: newDeal }
-  }
+  const convertLeadToDeal = leadId => mutate(`convert-lead-${leadId}`, async () => {
+    const id = backendId(leadId)
+    const lead = leads.find(item => item.id === String(leadId))
+    if (!id || !lead) throw new Error('This lead cannot be converted because it has no server ID.')
+    const response = await crmApi.convertLead(id, lead.estimatedValue || 150000, `Commercial Opportunity - ${lead.companyName}`)
+    if (!response?.data?.account?.id || !response?.data?.deal?.id || !response?.data?.lead) throw new Error('The server did not confirm lead conversion.')
+    const account = mapBackendAccount(response.data.account)
+    const deal = mapBackendDeal(response.data.deal)
+    setAccounts(previous => [account, ...previous.filter(item => item.id !== account.id)])
+    setDeals(previous => [deal, ...previous.filter(item => item.id !== deal.id)])
+    setLeads(previous => previous.map(item => item.id === String(leadId) ? mapBackendLead(response.data.lead) : item))
+    return { account, deal }
+  })
 
   // Add Lead
-  const addLead = (leadData) => {
-    const newLead = {
-      id: `lead_${Date.now()}`,
-      companyName: leadData.companyName,
-      contactName: leadData.contactName,
-      title: leadData.title || 'Procurement Director',
-      phone: leadData.phone || '+212 600 00 00 00',
-      email: leadData.email || 'contact@prospect.ma',
-      source: leadData.source || 'Web Form',
-      city: leadData.city || 'Casablanca',
-      score: Math.floor(Math.random() * 30) + 70,
-      temperature: 'Hot',
-      status: 'New',
-      estimatedValue: Number(leadData.estimatedValue) || 120000,
-      aiNotes: leadData.aiNotes || 'Lead generated via commercial operating system.',
-      createdAt: new Date().toISOString().split('T')[0],
-    }
-    setLeads(prev => [newLead, ...prev])
-
-    // Call API
-    crmApi.createLead({
-      name: newLead.contactName,
-      company: newLead.companyName,
-      email: newLead.email,
-      phone: newLead.phone,
-      source: newLead.source,
-      ai_score: newLead.score,
-    }).catch(err => console.warn('createLead API error:', err.message))
-
-    return newLead
-  }
+  const addLead = leadData => mutate('create-lead', async () => {
+    const response = await crmApi.createLead({ name: leadData.contactName, company: leadData.companyName, email: leadData.email, phone: leadData.phone, source: leadData.source, ai_score: Number(leadData.score) || undefined })
+    if (!response?.data?.id) throw new Error('The server did not confirm lead creation.')
+    const confirmed = mapBackendLead(response.data)
+    setLeads(previous => [confirmed, ...previous])
+    return confirmed
+  })
 
   // Create Quote
-  const addQuote = (quoteData) => {
-    const newQuote = {
-      id: `Q-2026-${String(quotes.length + 1).padStart(3, '0')}`,
-      dealId: quoteData.dealId || '',
-      accountId: quoteData.accountId || '1',
-      accountName: quoteData.accountName || 'Enterprise Client',
-      contactName: quoteData.contactName || 'Decision Maker',
-      date: new Date().toISOString().split('T')[0],
-      validUntil: quoteData.validUntil || '2026-11-15',
-      status: Number(quoteData.discountPercent) > 15 ? 'Pending Approval' : 'Sent',
-      discountPercent: Number(quoteData.discountPercent) || 0,
-      requiresDirectorApproval: Number(quoteData.discountPercent) > 15,
-      items: quoteData.items || [
-        { description: 'Intelligence Sales Suite License', qty: 1, unitPrice: 150000, total: 150000 }
-      ],
-      subtotal: quoteData.subtotal || 150000,
-      discountAmount: quoteData.discountAmount || 0,
-      totalHT: quoteData.totalHT || 150000,
-      tvaAmount: quoteData.tvaAmount || 30000,
-      totalTTC: quoteData.totalTTC || 180000,
-      ownerName: currentUser?.name || 'Karim Tazi',
-      publicToken: `token-${Date.now()}`,
+  const addQuote = quoteData => mutate('create-quote', async () => {
+    const accountId = backendId(quoteData.accountId)
+    const dealId = quoteData.dealId ? backendId(quoteData.dealId) : null
+    if (!accountId || (quoteData.dealId && !dealId)) throw new Error('Select valid server records for this quote.')
+    const response = await crmApi.createQuote({ account_id: accountId, deal_id: dealId, discount_percent: Number(quoteData.discountPercent) || 0, expiry_date: quoteData.validUntil, items: (quoteData.items || []).map(item => ({ description: item.description, qty: Number(item.qty) || 1, unit_price: Number(item.unitPrice) || 0 })) })
+    if (!response?.data?.id) throw new Error('The server did not confirm quote creation.')
+    const confirmed = mapBackendQuote(response.data)
+    setQuotes(previous => [confirmed, ...previous])
+    if (response.data.deal?.id) setDeals(previous => previous.map(deal => deal.id === String(response.data.deal.id) ? mapBackendDeal(response.data.deal) : deal))
+    else if (dealId) {
+      try {
+        const dealResponse = await crmApi.getDeal(dealId)
+        if (dealResponse?.data?.id) setDeals(previous => previous.map(deal => deal.id === String(dealId) ? mapBackendDeal(dealResponse.data) : deal))
+      } catch {
+        setMutationError('Quote saved, but the linked deal could not refresh. Reload CRM data to see its current stage.')
+      }
     }
-    setQuotes(prev => [newQuote, ...prev])
-
-    // Automatically transition Deal to 'proposal' stage
-    if (quoteData.dealId) {
-      setDeals(prevDeals =>
-        prevDeals.map(d => {
-          if (d.id === quoteData.dealId && (d.stage === 'leads' || d.stage === 'qualification' || d.stage === 'discovery')) {
-            return {
-              ...d,
-              stage: 'proposal',
-              probability: Math.max(d.probability, 60),
-              lastActivityDaysAgo: 0,
-              aiRecommendation: `Formal quote ${newQuote.id} generated. Follow up with client within 3 days.`
-            }
-          }
-          return d
-        })
-      )
+    try {
+      if (response.data.activities) setActivities(response.data.activities.map(mapBackendActivity))
+      else { const activitiesResponse = await crmApi.getActivities(); setActivities((activitiesResponse?.data || []).map(mapBackendActivity)) }
+    } catch {
+      setMutationError('Quote saved, but the activity list could not refresh. Reload CRM data to see the latest activity.')
     }
-
-    // Call Laravel API
-    crmApi.createQuote({
-      account_id: isNaN(quoteData.accountId) ? 1 : Number(quoteData.accountId),
-      deal_id: isNaN(quoteData.dealId) ? null : Number(quoteData.dealId),
-      discount_percent: Number(quoteData.discountPercent) || 0,
-      expiry_date: quoteData.validUntil || '2026-11-30',
-      items: (quoteData.items || []).map(it => ({
-        description: it.description,
-        qty: Number(it.qty) || 1,
-        unit_price: Number(it.unitPrice) || 50000,
-      }))
-    }).catch(err => console.warn('createQuote API error:', err.message))
-
-    return newQuote
-  }
+    return confirmed
+  })
 
   // Director Approves Discount
-  const approveQuoteDiscount = (quoteId) => {
-    setQuotes(prev =>
-      prev.map(q => q.id === quoteId ? { ...q, status: 'Sent', requiresDirectorApproval: false } : q)
-    )
-
-    const targetQuote = quotes.find(q => q.id === quoteId)
-    if (targetQuote?.numericId) {
-      crmApi.approveQuoteDiscount(targetQuote.numericId).catch(err => console.warn(err.message))
+  const approveQuoteDiscount = quoteId => mutate(`approve-quote-${quoteId}`, async () => {
+    const quote = quotes.find(item => item.id === quoteId)
+    const id = backendId(quote?.numericId)
+    if (!id) throw new Error('This quote has no server ID and cannot be approved.')
+    const response = await crmApi.approveQuoteDiscount(id)
+    if (!response?.data?.id) throw new Error('The server did not confirm quote approval.')
+    const confirmed = mapBackendQuote(response.data)
+    setQuotes(previous => previous.map(item => item.numericId === id ? confirmed : item))
+    try {
+      const activitiesResponse = await crmApi.getActivities()
+      setActivities((activitiesResponse?.data || []).map(mapBackendActivity))
+    } catch {
+      setMutationError('Approval confirmed, but the activity list could not refresh. Reload CRM data to see the latest activity.')
     }
-  }
+    return confirmed
+  })
+
+  const sendQuote = quoteId => mutate(`send-quote-${quoteId}`, async () => {
+    const quote = quotes.find(item => item.id === quoteId)
+    const id = backendId(quote?.numericId)
+    if (!id) throw new Error('This quote has no server ID and cannot be sent.')
+    const response = await crmApi.sendQuote(id)
+    if (!response?.data?.id) throw new Error('The server did not confirm the quote status change.')
+    let quoteData = response.data
+    try { const fullResponse = await crmApi.getQuote(id); if (fullResponse?.data?.id) quoteData = fullResponse.data } catch { /* use the confirmed send response */ }
+    const confirmed = reconcileQuote(quoteData, quote)
+    setQuotes(previous => previous.map(item => item.numericId === id ? confirmed : item))
+    return confirmed
+  })
+
+  // Revoke Public Token
+  const revokePublicToken = quoteId => mutate(`revoke-token-${quoteId}`, async () => {
+    const quote = quotes.find(item => item.id === quoteId)
+    const id = backendId(quote?.numericId)
+    if (!id) throw new Error('This quote has no server ID and its public token cannot be revoked.')
+    const response = await crmApi.revokePublicToken(id)
+    if (!response?.success) throw new Error(response?.message || 'The server could not revoke the public token.')
+    let quoteData = response.data
+    if (!quoteData) {
+      try {
+        const fullResponse = await crmApi.getQuote(id)
+        if (fullResponse?.data?.id) quoteData = fullResponse.data
+      } catch { /* use confirmed fallback */ }
+    }
+    const confirmed = quoteData
+      ? reconcileQuote(quoteData, quote)
+      : { ...quote, publicTokenRevokedAt: new Date().toISOString(), isRevoked: true }
+    setQuotes(previous => previous.map(item => item.numericId === id ? confirmed : item))
+    return confirmed
+  })
 
   // Accept Quote -> Triggers post-sale workflow and marks Deal as Won
-  const acceptQuote = (quoteId, signerInfo = {}) => {
-    const quote = quotes.find(q => q.id === quoteId)
-    if (!quote) return
-
-    setQuotes(prev =>
-      prev.map(q => q.id === quoteId ? {
-        ...q,
-        status: 'Accepted',
-        clientSignerName: signerInfo.signerName || quote.contactName,
-        clientPoNumber: signerInfo.poNumber || `BC-2026-${Math.floor(1000 + Math.random() * 9000)}`
-      } : q)
-    )
-
-    if (quote.dealId) {
-      moveDealStage(quote.dealId, 'won')
+  const acceptQuote = (quoteId, signerInfo = {}) => mutate(`accept-quote-${quoteId}`, async () => {
+    const quote = quotes.find(item => item.id === quoteId)
+    const id = backendId(quote?.numericId)
+    if (!id) throw new Error('This quote has no server ID and cannot be accepted.')
+    const response = await crmApi.recordQuoteAcceptance(id, { signerName: signerInfo.signerName || quote.contactName, poNumber: signerInfo.poNumber || '', notes: signerInfo.notes || 'Accepted via CRM interface' })
+    if (!response?.data?.id || response.data.status !== 'Accepted') throw new Error('The server did not confirm quote acceptance.')
+    const confirmed = reconcileQuote(response.data, quote)
+    setQuotes(previous => previous.map(item => item.numericId === id ? confirmed : item))
+    if (response.data.deal?.id) setDeals(previous => previous.map(item => item.id === String(response.data.deal.id) ? mapBackendDeal(response.data.deal) : item))
+    else if (response.data.deal_id) {
+      try {
+        const dealResponse = await crmApi.getDeal(response.data.deal_id)
+        if (dealResponse?.data?.id) setDeals(previous => previous.map(item => item.id === String(dealResponse.data.id) ? mapBackendDeal(dealResponse.data) : item))
+      } catch {
+        setMutationError('Acceptance confirmed, but the linked deal could not refresh. Reload CRM data to see its current stage.')
+      }
     }
-
-    // Log Activity
-    const newAct = {
-      id: `act_${Date.now()}`,
-      type: 'ai_alert',
-      title: `Quote ${quote.id} Accepted! ERP Order Triggered`,
-      dealId: quote.dealId || '',
-      dealTitle: `Signed Proposal for ${quote.accountName}`,
-      contactName: quote.contactName,
-      date: new Date().toISOString().split('T')[0],
-      time: '12:00',
-      status: 'completed',
-      notes: `Quote accepted. Downstream post-sale event triggered for Logistics & Finance modules.`,
-      repName: currentUser?.name || 'System',
+    try {
+      const activitiesResponse = await crmApi.getActivities()
+      setActivities((activitiesResponse?.data || []).map(mapBackendActivity))
+    } catch {
+      setMutationError('Acceptance confirmed, but the activity list could not refresh. Reload CRM data to see the latest activity.')
     }
-    setActivities(prev => [newAct, ...prev])
-
-    // Call Laravel API
-    if (quote.numericId) {
-      crmApi.recordQuoteAcceptance(quote.numericId, {
-        signerName: signerInfo.signerName || quote.contactName,
-        poNumber: signerInfo.poNumber || `BC-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-        notes: signerInfo.notes || 'Accepted via CRM interface',
-      }).catch(err => console.warn(err.message))
-    }
-  }
+    return confirmed
+  })
 
   // Execute AI Autonomous Follow-Up Action
-  const executeFollowUp = (dealId, actionType) => {
+  const executeFollowUp = (dealId, actionType) => mutate(`followup-${dealId}`, async () => {
     const deal = deals.find(d => d.id === dealId)
-    if (!deal) return
+    const id = backendId(dealId)
+    if (!id || !deal) throw new Error('This deal has no server ID; the follow-up was not recorded.')
 
     const newActivity = {
-      id: `act_${Date.now()}`,
       type: actionType,
-      title: `Autonomous ${actionType.toUpperCase()}: ${deal.title}`,
+      title: `Follow-up request logged (${actionType}): ${deal.title}`,
       dealId: deal.id,
       dealTitle: deal.title,
       contactName: deal.contactName,
-      date: new Date().toISOString().split('T')[0],
-      time: 'Now',
       status: 'completed',
-      notes: `Autonomous AI trigger successfully dispatched. Response tracking initialized.`,
+      notes: 'Recorded in the CRM activity timeline. External message delivery is not connected.',
       repName: 'Autonomous AI Engine',
     }
-    setActivities(prev => [newActivity, ...prev])
-
-    setDeals(prev =>
-      prev.map(d =>
-        d.id === dealId
-          ? {
-              ...d,
-              lastActivityDaysAgo: 0,
-              hasInactivityWarning: false,
-              probability: Math.min(d.probability + 5, 95),
-            }
-          : d
-      )
-    )
-  }
+    const activityPayload = {
+      type: newActivity.type,
+      title: newActivity.title,
+      description: newActivity.notes,
+      deal_id: id,
+      completed: true,
+    }
+    const operation = idempotencyKeyFor('activity-create', activityPayload)
+    const response = await crmApi.createActivity(activityPayload, operation.key)
+    if (!response?.data?.id) throw new Error('The server did not confirm the follow-up.')
+    operation.complete()
+    setActivities(previous => [mapBackendActivity(response.data), ...previous.filter(item => item.id !== String(response.data.id))])
+    return mapBackendActivity(response.data)
+  })
 
   // Add custom activity
-  const addActivity = (actData) => {
+  const addActivity = actData => mutate('create-activity', async () => {
     const newAct = {
-      id: `act_${Date.now()}`,
+      id: undefined,
       type: actData.type || 'call',
       title: actData.title,
       dealId: actData.dealId || '',
@@ -539,18 +495,94 @@ export function CrmProvider({ children }) {
       notes: actData.notes || '',
       repName: currentUser?.name || 'Commercial',
     }
-    setActivities(prev => [newAct, ...prev])
-    return newAct
-  }
+    const dealId = newAct.dealId ? backendId(newAct.dealId) : null
+    if (newAct.dealId && !dealId) throw new Error('The selected deal has no server ID.')
+    const activityPayload = {
+      type: newAct.type,
+      title: newAct.title,
+      description: newAct.notes,
+      deal_id: dealId,
+      scheduled_at: `${newAct.date} 12:00:00`,
+      completed: newAct.status === 'completed',
+    }
+    const operation = idempotencyKeyFor('activity-create', activityPayload)
+    const response = await crmApi.createActivity(activityPayload, operation.key)
+    if (!response?.data?.id) throw new Error('The server did not confirm activity creation.')
+    operation.complete()
+    const confirmed = mapBackendActivity(response.data)
+    setActivities(previous => [confirmed, ...previous])
+    return confirmed
+  })
+
+  // Add new enterprise account
+  const addAccount = accData => mutate('create-account', async () => {
+    const response = await crmApi.createAccount({
+      name: accData.name,
+      industry: accData.industry,
+      annual_revenue: accData.annual_revenue,
+      city: accData.city,
+      phone: accData.phone,
+      email: accData.email,
+      website: accData.website,
+      status: accData.status,
+      tier: accData.tier,
+      primary_contact: accData.primary_contact,
+      ice: accData.ice,
+      if_number: accData.if_number,
+      rc_number: accData.rc_number,
+      patente: accData.patente,
+      notes: accData.notes,
+    })
+    if (!response?.data?.id) throw new Error('The server did not confirm account creation.')
+    const confirmed = mapBackendAccount(response.data)
+    setAccounts(previous => [confirmed, ...previous])
+    return confirmed
+  })
+
+  // Delete Deal
+  const deleteDeal = dealId => mutate(`delete-deal-${dealId}`, async () => {
+    const id = backendId(dealId); if (!id) throw new Error('This deal has no server ID.')
+    await crmApi.deleteDeal(id); setDeals(previous => previous.filter(item => item.id !== String(dealId))); return true
+  })
+
+  // Delete Quote
+  const deleteQuote = quoteId => mutate(`delete-quote-${quoteId}`, async () => {
+    const quote = quotes.find(item => item.id === quoteId); const id = backendId(quote?.numericId)
+    if (!id) throw new Error('This quote has no server ID.')
+    await crmApi.deleteQuote(id); setQuotes(previous => previous.filter(item => item.numericId !== id)); return true
+  })
+
+  // Delete Lead
+  const deleteLead = leadId => mutate(`delete-lead-${leadId}`, async () => {
+    const id = backendId(leadId); if (!id) throw new Error('This lead has no server ID.')
+    await crmApi.deleteLead(id); setLeads(previous => previous.filter(item => item.id !== String(leadId))); return true
+  })
+
+  // Delete Account
+  const deleteAccount = accountId => mutate(`delete-account-${accountId}`, async () => {
+    const id = backendId(accountId); if (!id) throw new Error('This account has no server ID.')
+    await crmApi.deleteAccount(id); setAccounts(previous => previous.filter(item => item.id !== String(accountId))); return true
+  })
 
   // Reset to initial mock data
-  const resetData = () => {
-    setDeals(INITIAL_DEALS)
-    setLeads(INITIAL_LEADS)
-    setAccounts(INITIAL_ACCOUNTS)
-    setQuotes(INITIAL_QUOTES)
-    setActivities(INITIAL_ACTIVITIES)
-  }
+  const resetData = () => mutate('refresh-crm-data', async () => {
+    const isStaffManager = currentUser?.role === 'admin' || currentUser?.role === 'manager' || currentUser?.role === 'director'
+    const [dealResponse, leadResponse, accountResponse, quoteResponse, activityResponse, userResponse] = await Promise.all([
+      crmApi.getDeals(),
+      crmApi.getLeads(),
+      crmApi.getAccounts(),
+      crmApi.getQuotes(),
+      crmApi.getActivities(),
+      isStaffManager ? crmApi.getUsers().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+    ])
+    setDeals((dealResponse?.data || []).map(mapBackendDeal))
+    setLeads((leadResponse?.data || []).map(mapBackendLead))
+    setAccounts((accountResponse?.data || []).map(mapBackendAccount))
+    setQuotes((quoteResponse?.data || []).map(mapBackendQuote))
+    setActivities((activityResponse?.data || []).map(mapBackendActivity))
+    setUsers(userResponse?.data || [])
+    return true
+  })
 
   return (
     <CrmContext.Provider
@@ -560,20 +592,35 @@ export function CrmProvider({ children }) {
         accounts,
         quotes,
         activities,
+        users,
         stages: PIPELINE_STAGES,
         aiAgents: AI_AGENTS_DEFINITIONS,
         viewScope,
         setViewScope,
+        loading,
+        isLoading: loading,
         isBackendConnected,
+        mutationError,
+        clearMutationError: () => setMutationError(''),
+        pendingMutations,
         moveDealStage,
         addDeal,
+        updateDeal,
+        deleteDeal,
         convertLeadToDeal,
         addLead,
+        deleteLead,
         addQuote,
+        deleteQuote,
+        addAccount,
+        deleteAccount,
         approveQuoteDiscount,
+        sendQuote,
+        revokePublicToken,
         acceptQuote,
         executeFollowUp,
         addActivity,
+        refreshData,
         resetData,
       }}
     >

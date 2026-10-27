@@ -26,6 +26,10 @@ export default function CrmAiAgents() {
   const { role } = useAuth()
   const { lang } = useLanguage()
   const navigate = useNavigate()
+  const [selectedAgentId, setSelectedAgentId] = useState('sales_assistant')
+  const [chatInput, setChatInput] = useState('')
+  const [chatLog, setChatLog] = useState([{ sender: 'agent', agentId: 'sales_assistant', text: "Hello! I am your Intelligence Sales Copilot. What would you like to prepare today?" }])
+  const [isTyping, setIsTyping] = useState(false)
 
   // Guard: Sales AI Copilot suite is internal only
   if (role === 'client') {
@@ -51,17 +55,6 @@ export default function CrmAiAgents() {
       </div>
     )
   }
-
-  const [selectedAgentId, setSelectedAgentId] = useState('sales_assistant')
-  const [chatInput, setChatInput] = useState('')
-  const [chatLog, setChatLog] = useState([
-    {
-      sender: 'agent',
-      agentId: 'sales_assistant',
-      text: "Hello! I am your Intelligence Sales Copilot. What would you like to prepare today? (Handling client objections, account analysis, closing pitches, or meeting debrief summaries?)"
-    }
-  ])
-  const [isTyping, setIsTyping] = useState(false)
 
   const selectedAgent = aiAgents.find(a => a.id === selectedAgentId) || aiAgents[0]
 

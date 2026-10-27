@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useCrm } from '../context/CrmContext'
 import { useLanguage } from '../../context/LanguageContext'
 import { useTheme } from '../../context/ThemeContext'
+import { crmApi } from '../../services/crmApi'
 import {
   ResponsiveContainer,
   AreaChart,
@@ -46,7 +47,8 @@ import {
   Download,
   Flame,
   Zap,
-  Info
+  Info,
+  AlertCircle
 } from 'lucide-react'
 
 import { formatCompactMAD } from '../data/crmMockData'
@@ -61,6 +63,79 @@ export default function CrmDashboard() {
 
   const [revenueChartMode, setRevenueChartMode] = useState('monthly') // 'monthly' | 'cumulative'
   const [successToast, setSuccessToast] = useState(null)
+
+  // Real Analytics KPIs from GET /api/analytics/kpis
+  const [kpiData, setKpiData] = useState(null)
+  const [kpisLoading, setKpisLoading] = useState(role !== 'client')
+  const [kpisError, setKpisError] = useState(null)
+
+  const handleRetryKpis = () => {
+    setKpisLoading(true)
+    setKpisError(null)
+    crmApi.getAnalyticsKpis()
+      .then(res => setKpiData(res?.data || null))
+      .catch(err => setKpisError(err?.message || 'Failed to load real analytics KPIs from the server.'))
+      .finally(() => setKpisLoading(false))
+  }
+
+  useEffect(() => {
+    let active = true
+    if (role === 'client') {
+      setKpisLoading(false)
+      return
+    }
+    setKpisLoading(true)
+    setKpisError(null)
+    crmApi.getAnalyticsKpis()
+      .then(res => {
+        if (!active) return
+        setKpiData(res?.data || null)
+      })
+      .catch(err => {
+        if (!active) return
+        setKpisError(err?.message || 'Failed to load real analytics KPIs from the server.')
+      })
+      .finally(() => {
+        if (active) setKpisLoading(false)
+      })
+    return () => { active = false }
+  }, [role, currentUser?.id, deals.length, quotes.length])
+
+  const relevantDeals = useMemo(() => {
+    if (role !== 'rep') return deals
+    const currentUserId = currentUser?.id != null ? String(currentUser.id) : null
+    return deals.filter(d => {
+      const matchId = currentUserId && (
+        String(d.ownerId) === currentUserId ||
+        String(d.user_id) === currentUserId ||
+        String(d.userId) === currentUserId
+      )
+      const matchName = currentUser?.name && d.ownerName?.toLowerCase().includes(currentUser.name.toLowerCase())
+      return matchId || matchName
+    })
+  }, [deals, role, currentUser])
+
+  const relevantLeads = useMemo(() => {
+    if (role !== 'rep') return leads
+    const currentUserId = currentUser?.id != null ? String(currentUser.id) : null
+    return leads.filter(l =>
+      !l.assignedTo ||
+      (currentUserId && (String(l.assignedTo) === currentUserId || String(l.userId) === currentUserId || String(l.assignedToId) === currentUserId)) ||
+      (currentUser?.id != null && l.user_id === currentUser.id) ||
+      (currentUser?.name && l.assignedToName?.toLowerCase() === currentUser.name.toLowerCase())
+    )
+  }, [leads, role, currentUser])
+
+  const topPerformers = useMemo(() => {
+    const map = {}
+    deals.filter(d => d.stage === 'won').forEach(d => {
+      const name = d.ownerName || 'Commercial'
+      map[name] = (map[name] || 0) + (d.amount || 0)
+    })
+    return Object.entries(map)
+      .map(([name, amount]) => ({ name, amount }))
+      .sort((a, b) => b.amount - a.amount)
+  }, [deals])
 
   // Format MAD currency helper
   const formatMAD = (amount) => {
@@ -79,12 +154,17 @@ export default function CrmDashboard() {
   // 1. CLIENT PORTAL DASHBOARD VIEW
   // ==========================================
   if (role === 'client') {
-    const clientCompany = currentUser?.company || 'MaroCraft Industries'
-    const clientQuotes = quotes.filter(q =>
-      q.accountName?.toLowerCase().includes('marocraft') ||
-      q.client_company?.toLowerCase().includes('marocraft') ||
-      q.client_email === currentUser?.email
-    )
+    const clientCompany = currentUser?.accountName || currentUser?.account?.name || 'Client Space'
+    const clientQuotes = currentUser?.accountId
+      ? quotes.filter(q =>
+          (q.accountId || q.account_id) === currentUser.accountId ||
+          q.client_email === currentUser?.email ||
+          (clientCompany && (
+            q.accountName?.toLowerCase().includes(clientCompany.toLowerCase()) ||
+            q.client_company?.toLowerCase().includes(clientCompany.toLowerCase())
+          ))
+        )
+      : quotes
     const pendingQuotes = clientQuotes.filter(q => q.status !== 'Accepted')
     const acceptedQuotes = clientQuotes.filter(q => q.status === 'Accepted')
     const totalValidatedInvestment = acceptedQuotes.reduce((sum, q) => sum + (q.totalTTC || q.total_amount || 0), 0)
@@ -108,14 +188,19 @@ export default function CrmDashboard() {
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {lang === 'ar'
-                ? `مرحباً بك ${currentUser?.name || 'عمر القباج'}. تتبع عروض الأسعار، العقود المعتمدة، وتفاصيل المشاريع المشتركة.`
-                : `Welcome, ${currentUser?.name || 'Omar Kabbaj'}. Review your commercial proposals, active contracts, and project milestones.`}
+                ? `مرحباً بك ${currentUser?.name || ''}. تتبع عروض الأسعار، العقود المعتمدة، وتفاصيل المشاريع المشتركة.`
+                : `Welcome, ${currentUser?.name || ''}. Review your commercial proposals, active contracts, and project milestones.`}
             </p>
           </div>
 
           <div className="relative z-10 flex items-center gap-3">
             <button
-              onClick={() => navigate('/portal/quote/marocraft-token-2026')}
+              onClick={() => {
+                const target = pendingQuotes[0] || clientQuotes[0]
+                const token = target?.publicToken || target?.public_token
+                if (token) navigate(`/portal/quote/${token}`)
+                else navigate('/crm/quotes')
+              }}
               className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md shadow-brand-600/30 transition-all"
             >
               <ExternalLink className="h-4 w-4" />
@@ -230,13 +315,17 @@ export default function CrmDashboard() {
                   <div className="flex items-center gap-4 self-end sm:self-center">
                     <div className="text-right rtl:text-left">
                       <div className="text-sm font-black text-slate-900 dark:text-white">
-                        {formatFullMAD(quote.totalTTC || quote.total_amount || 125000)}
+                        {formatFullMAD(quote.totalTTC ?? quote.total_amount ?? 0)}
                       </div>
                       <span className="text-[10px] text-slate-400">Montant TTC</span>
                     </div>
 
                     <button
-                      onClick={() => navigate('/portal/quote/marocraft-token-2026')}
+                      onClick={() => {
+                        const token = quote.publicToken || quote.public_token
+                        if (token) navigate(`/portal/quote/${token}`)
+                        else navigate('/crm/quotes')
+                      }}
                       className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-sm transition-all"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
@@ -269,7 +358,7 @@ export default function CrmDashboard() {
                     <Clock className="h-4 w-4 text-brand-500 shrink-0 animate-spin" />
                     <div>
                       <span className="font-bold text-slate-800 dark:text-slate-200">Configuration des Agents IA de Vente</span>
-                      <p className="text-[11px] text-slate-400">Entraînement des bots de qualification sur le catalogue MaroCraft</p>
+                      <p className="text-[11px] text-slate-400">Entraînement des bots de qualification sur le catalogue d'entreprise</p>
                     </div>
                   </div>
                   <span className="text-[10px] font-bold text-brand-600">En cours (75%)</span>
@@ -306,7 +395,7 @@ export default function CrmDashboard() {
             {/* Direct Contact Buttons */}
             <div className="space-y-2">
               <a
-                href="https://wa.me/212661002233?text=Bonjour%20Yassine,%20je%20vous%20contacte%20concernant%20le%20devis%20MaroCraft"
+                href={`https://wa.me/212661002233?text=${encodeURIComponent(`Bonjour Yassine, je vous contacte concernant les propositions ${clientCompany}`)}`}
                 target="_blank"
                 rel="noreferrer"
                 className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
@@ -316,7 +405,7 @@ export default function CrmDashboard() {
               </a>
 
               <a
-                href="mailto:yassine@intelligence-agency.com?subject=Demande%20d'information%20MaroCraft%20Industries"
+                href={`mailto:yassine@intelligence-agency.com?subject=${encodeURIComponent(`Demande d'information - ${clientCompany}`)}`}
                 className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-800 dark:text-white text-xs font-bold flex items-center justify-center gap-2 transition-all"
               >
                 <Mail className="h-4 w-4 text-brand-600" />
@@ -347,23 +436,12 @@ export default function CrmDashboard() {
   // Scoping deals strictly:
   // - rep: ONLY own deals
   // - manager / admin: ALL company deals
-  const relevantDeals = useMemo(() => {
-    if (role === 'rep') {
-      return deals.filter(d =>
-        d.ownerId === currentUser?.id ||
-        d.ownerName?.toLowerCase().includes(currentUser?.name?.toLowerCase() || '') ||
-        d.user_id === currentUser?.id
-      )
-    }
-    return deals
-  }, [deals, role, currentUser])
-
-  // Financial Computations for current scope
-  const totalWonRevenue = relevantDeals
+  // Financial Computations for current scope backed by real API
+  const totalWonRevenue = kpiData ? kpiData.closed_won_revenue : relevantDeals
     .filter(d => d.stage === 'won')
     .reduce((sum, d) => sum + d.amount, 0)
 
-  const activePipelineValue = relevantDeals
+  const activePipelineValue = kpiData ? kpiData.total_pipeline : relevantDeals
     .filter(d => d.stage !== 'won' && d.stage !== 'lost')
     .reduce((sum, d) => sum + d.amount, 0)
 
@@ -379,19 +457,23 @@ export default function CrmDashboard() {
     ? (currentUser?.quota || 950000)
     : (role === 'manager' ? 3500000 : 12000000)
 
-  const quotaPercent = Math.min(100, Math.round((totalWonRevenue / quota) * 100))
+  const quotaPercent = quota > 0 ? Math.min(100, Math.round((totalWonRevenue / quota) * 100)) : 0
   const dormantDeals = relevantDeals.filter(d => d.hasInactivityWarning || d.lastActivityDaysAgo >= 7)
 
   // Pending Manager Approvals for Manager/Admin
   const pendingDiscountApprovals = quotes.filter(q => q.status === 'Pending Approval')
 
-  // Stage Distribution counts
+  // Stage Distribution counts - using server funnel if available
   const stageStats = stages.map(st => {
+    const serverStage = kpiData?.funnel?.find(
+      f => f.stage?.toLowerCase() === st.id.toLowerCase()
+    )
     const stageDeals = relevantDeals.filter(d => d.stage === st.id)
-    const amount = stageDeals.reduce((sum, d) => sum + d.amount, 0)
+    const count = serverStage ? serverStage.count : stageDeals.length
+    const amount = serverStage ? serverStage.amount : stageDeals.reduce((sum, d) => sum + d.amount, 0)
     return {
       ...st,
-      count: stageDeals.length,
+      count,
       amount,
     }
   })
@@ -452,30 +534,29 @@ export default function CrmDashboard() {
   }
 
   const stageBarData = stages.map(st => {
+    const serverStage = kpiData?.funnel?.find(
+      f => f.stage?.toLowerCase() === st.id.toLowerCase()
+    )
     const stageDeals = relevantDeals.filter(d => d.stage === st.id)
-    const totalMAD = stageDeals.reduce((sum, d) => sum + d.amount, 0)
+    const count = serverStage ? serverStage.count : stageDeals.length
+    const amount = serverStage ? serverStage.amount : stageDeals.reduce((sum, d) => sum + d.amount, 0)
     return {
       id: st.id,
       name: lang === 'ar' ? st.nameAr : st.nameEn,
-      count: stageDeals.length,
-      amount: totalMAD,
+      count,
+      amount,
       fill: stageColors[st.id] || '#3b82f6'
     }
   })
-
-  // Scoped Leads count
-  const relevantLeads = role === 'rep'
-    ? leads.filter(l => l.assignedTo === currentUser?.id || l.assignedToName === currentUser?.name || !l.assignedTo)
-    : leads
 
   const hotLeads = relevantLeads.filter(l => (l.aiScore || 0) >= 80).length
   const warmLeads = relevantLeads.filter(l => (l.aiScore || 0) >= 50 && (l.aiScore || 0) < 80).length
   const coldLeads = relevantLeads.filter(l => (l.aiScore || 0) < 50).length
 
   const leadDistributionData = [
-    { name: lang === 'ar' ? 'ساخن (80+)' : 'Hot (Score 80+)', value: hotLeads || 3, color: '#3b82f6' },
-    { name: lang === 'ar' ? 'متوسط (50-79)' : 'Warm (50-79)', value: warmLeads || 2, color: '#60a5fa' },
-    { name: lang === 'ar' ? 'بارد (<50)' : 'Cold (<50)', value: coldLeads || 1, color: '#1e3a8a' }
+    { name: lang === 'ar' ? 'ساخن (80+)' : 'Hot (Score 80+)', value: hotLeads, color: '#3b82f6' },
+    { name: lang === 'ar' ? 'متوسط (50-79)' : 'Warm (50-79)', value: warmLeads, color: '#60a5fa' },
+    { name: lang === 'ar' ? 'بارد (<50)' : 'Cold (<50)', value: coldLeads, color: '#1e3a8a' }
   ]
 
   const CustomChartTooltip = ({ active, payload, label }) => {
@@ -500,8 +581,9 @@ export default function CrmDashboard() {
     return null
   }
 
-  const handleApproveDiscount = (quoteId) => {
-    approveQuoteDiscount(quoteId)
+  const handleApproveDiscount = async (quoteId) => {
+    const approved = await approveQuoteDiscount(quoteId)
+    if (!approved) return
     setSuccessToast(`Remise commerciale approuvée pour le devis ${quoteId} !`)
     setTimeout(() => setSuccessToast(null), 4000)
   }
@@ -595,101 +677,137 @@ export default function CrmDashboard() {
       )}
 
       {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* 1. Won Revenue */}
-        <div className="p-5 rounded-lg bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/10 shadow-sm relative group hover:border-brand-500/50 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              {role === 'rep'
-                ? (lang === 'ar' ? 'مبيعاتي المحققة' : 'My Closed Won Revenue')
-                : (lang === 'ar' ? 'الإيرادات المحققة' : 'Team Won Revenue')}
-            </span>
-            <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-              <DollarSign className="h-4 w-4" />
+      {kpisLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-pulse">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="p-5 rounded-lg bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/10 shadow-sm h-32 flex flex-col justify-between">
+              <div className="h-4 bg-slate-200 dark:bg-white/10 rounded w-28" />
+              <div className="h-7 bg-slate-200 dark:bg-white/10 rounded w-36" />
+              <div className="h-3 bg-slate-200 dark:bg-white/10 rounded w-24" />
+            </div>
+          ))}
+        </div>
+      ) : kpisError ? (
+        <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-rose-700 dark:text-rose-300">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+            <span>{kpisError}</span>
+          </div>
+          <button
+            onClick={handleRetryKpis}
+            className="px-3 py-1.5 rounded-lg bg-rose-600 text-white font-bold hover:bg-rose-500 self-start sm:self-auto transition-colors"
+          >
+            {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* 1. Won Revenue */}
+          <div className="p-5 rounded-lg bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/10 shadow-sm relative group hover:border-brand-500/50 transition-all">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                {role === 'rep'
+                  ? (lang === 'ar' ? 'مبيعاتي المحققة' : 'My Closed Won Revenue')
+                  : (lang === 'ar' ? 'الإيرادات المحققة' : 'Team Won Revenue')}
+              </span>
+              <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                <DollarSign className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              {formatMAD(totalWonRevenue)}
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-xs">
+              <span className="flex items-center text-emerald-600 font-bold">
+                <Award className="h-3.5 w-3.5 mr-1" />
+                {lang === 'ar' ? `معدل الفوز: ${kpiData?.win_rate ?? 0}%` : `Win Rate: ${kpiData?.win_rate ?? 0}%`}
+              </span>
+              <span className="text-slate-400">
+                {lang === 'ar' ? '(من إجمالي الصفقات)' : '(of all deals)'}
+              </span>
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-            {formatMAD(totalWonRevenue)}
-          </div>
-          <div className="mt-2 flex items-center gap-2 text-xs">
-            <span className="flex items-center text-emerald-600 font-bold">
-              <ArrowUpRight className="h-3.5 w-3.5" /> +28.4%
-            </span>
-            <span className="text-slate-400">vs last quarter</span>
-          </div>
-        </div>
 
-        {/* 2. Active Pipeline */}
-        <div className="p-5 rounded-lg bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/10 shadow-sm relative group hover:border-brand-500/50 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              {role === 'rep'
-                ? (lang === 'ar' ? 'قيمة صفقاتي النشطة' : 'My Active Pipeline')
-                : (lang === 'ar' ? 'قيمة مسار الصفقات' : 'Active Pipeline Value')}
-            </span>
-            <div className="h-8 w-8 rounded-xl bg-brand-500/10 text-brand-600 flex items-center justify-center">
-              <TrendingUp className="h-4 w-4" />
+          {/* 2. Active Pipeline */}
+          <div className="p-5 rounded-lg bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/10 shadow-sm relative group hover:border-brand-500/50 transition-all">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                {role === 'rep'
+                  ? (lang === 'ar' ? 'قيمة صفقاتي النشطة' : 'My Active Pipeline')
+                  : (lang === 'ar' ? 'قيمة مسار الصفقات' : 'Active Pipeline Value')}
+              </span>
+              <div className="h-8 w-8 rounded-xl bg-brand-500/10 text-brand-600 flex items-center justify-center">
+                <TrendingUp className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              {formatMAD(activePipelineValue)}
+            </div>
+            <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
+              <span>{lang === 'ar' ? 'المرجحة:' : 'Weighted:'}</span>
+              <span className="font-bold text-brand-600 dark:text-brand-400">{formatMAD(weightedPipeline)}</span>
+              <span>•</span>
+              <span>{kpiData?.active_accounts_count ?? 0} {lang === 'ar' ? 'حساب' : 'accounts'}</span>
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-            {formatMAD(activePipelineValue)}
-          </div>
-          <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
-            <span>Weighted:</span>
-            <span className="font-bold text-brand-600 dark:text-brand-400">{formatMAD(weightedPipeline)}</span>
-          </div>
-        </div>
 
-        {/* 3. Quota Achievement */}
-        <div className="p-5 rounded-lg bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/10 shadow-sm relative group hover:border-brand-500/50 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              {role === 'rep'
-                ? (lang === 'ar' ? 'هدفي الفردي (Quota)' : 'My Sales Quota')
-                : (lang === 'ar' ? 'نسبة الهدف العام' : 'Global Quota Attainment')}
-            </span>
-            <div className="h-8 w-8 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
-              <Target className="h-4 w-4" />
+          {/* 3. Quota Achievement */}
+          <div className="p-5 rounded-lg bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/10 shadow-sm relative group hover:border-brand-500/50 transition-all">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                {role === 'rep'
+                  ? (lang === 'ar' ? 'هدفي الفردي (Quota)' : 'My Sales Quota')
+                  : (lang === 'ar' ? 'نسبة الهدف العام' : 'Global Quota Attainment')}
+              </span>
+              <div className="h-8 w-8 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
+                <Target className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                {quotaPercent}%
+              </span>
+              <span className="text-xs text-slate-400">of {formatMAD(quota)}</span>
+            </div>
+            <div className="mt-2 w-full bg-slate-100 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-brand-600 h-full rounded-full transition-all duration-500"
+                style={{ width: `${quotaPercent}%` }}
+              />
+            </div>
+            <div className="mt-1.5 text-[10px] text-slate-400 flex justify-between">
+              <span>{lang === 'ar' ? 'قبول العروض:' : 'Quote Acceptance:'} {kpiData?.quote_acceptance_rate ?? 0}%</span>
             </div>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-              {quotaPercent}%
-            </span>
-            <span className="text-xs text-slate-400">of {formatMAD(quota)}</span>
-          </div>
-          <div className="mt-2 w-full bg-slate-100 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
-            <div
-              className="bg-brand-600 h-full rounded-full transition-all duration-500"
-              style={{ width: `${quotaPercent}%` }}
-            />
-          </div>
-        </div>
 
-        {/* 4. Follow-up Alerts */}
-        <div className="p-5 rounded-lg bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/10 shadow-sm relative group hover:border-brand-500/50 transition-all">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              {role === 'rep'
-                ? (lang === 'ar' ? 'تنبيهاتي (7 أيام)' : 'My Follow-Up Alerts')
-                : (lang === 'ar' ? 'تنبيهات المتابعة (7j)' : '7-Day Follow-Up Alerts')}
-            </span>
-            <div className="h-8 w-8 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
-              <AlertTriangle className="h-4 w-4" />
+          {/* 4. Follow-up Alerts & Lead Conversion */}
+          <div className="p-5 rounded-lg bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/10 shadow-sm relative group hover:border-brand-500/50 transition-all">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                {role === 'rep'
+                  ? (lang === 'ar' ? 'تنبيهاتي (7 أيام)' : 'My Follow-Up Alerts')
+                  : (lang === 'ar' ? 'تنبيهات المتابعة (7j)' : '7-Day Follow-Up Alerts')}
+              </span>
+              <div className="h-8 w-8 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+                <AlertTriangle className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+              <span>{dormantDeals.length}</span>
+              <span className="text-xs font-normal text-rose-500">
+                {dormantDeals.length > 0 ? (lang === 'ar' ? 'صفقات غير نشطة' : 'dormant deals') : (lang === 'ar' ? 'الكل محدث' : 'All up to date')}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+              <span className="flex items-center gap-1 text-brand-600 font-semibold">
+                <Target className="h-3 w-3" />
+                <span>Conv: {kpiData?.lead_conversion_rate ?? 0}%</span>
+              </span>
+              <span>{kpiData?.active_leads_count ?? relevantLeads.length} {lang === 'ar' ? 'عميل نشط' : 'leads'}</span>
             </div>
           </div>
-          <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            <span>{dormantDeals.length}</span>
-            <span className="text-xs font-normal text-rose-500">
-              {dormantDeals.length > 0 ? (lang === 'ar' ? 'صفقات غير نشطة' : 'dormant deals') : 'All up to date'}
-            </span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-400">
-            <Clock className="h-3.5 w-3.5 text-rose-500" />
-            <span>Automated AI drafts available</span>
-          </div>
         </div>
-      </div>
+      )}
 
       {/* Middle Row: Charts & Analytics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -697,16 +815,23 @@ export default function CrmDashboard() {
         <div className="lg:col-span-2 p-6 rounded-lg bg-white dark:bg-navy-900 border border-slate-200 dark:border-white/10 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-brand-600" />
-                <span>
-                  {role === 'rep'
-                    ? (lang === 'ar' ? 'تتبع الإيرادات الشهرية الفردية' : 'Personal Monthly Revenue vs Quota')
-                    : (lang === 'ar' ? 'مخطط الإيرادات الفعلي مقابل التوقعات' : 'Revenue Pacing: Actual vs Forecast')}
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-brand-600" />
+                  <span>
+                    {role === 'rep'
+                      ? (lang === 'ar' ? 'تتبع الإيرادات الشهرية الفردية' : 'Personal Monthly Revenue vs Quota')
+                      : (lang === 'ar' ? 'مخطط الإيرادات الفعلي مقابل التوقعات' : 'Revenue Pacing: Actual vs Forecast')}
+                  </span>
+                </h2>
+                <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 text-[10px] font-bold">
+                  {lang === 'ar' ? 'نموذج محاكاة تجريبي' : 'Sample / Demo Projection'}
                 </span>
-              </h2>
+              </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                {lang === 'ar' ? 'بيانات الأداء المالي بالدرهم المغربي (MAD)' : 'Financial trajectory in Moroccan Dirhams (MAD)'}
+                {lang === 'ar'
+                  ? 'بيانات استرشادية تجريبية — لا توفر واجهة البرمجة (API) سلاسل تاريخية شهرية حالياً.'
+                  : 'Indicative pacing simulation — The current API does not provide monthly historical series or forecasting snapshots.'}
               </p>
             </div>
 
@@ -775,7 +900,7 @@ export default function CrmDashboard() {
                 <Area
                   type="monotone"
                   dataKey="actual"
-                  name={lang === 'ar' ? 'المحقق الفعلي' : 'Actual Closed'}
+                  name={lang === 'ar' ? 'المحقق الفعلي (نموذج تجريبي)' : 'Actual Closed (Sample Demo)'}
                   stroke="#3b82f6"
                   strokeWidth={2.5}
                   fillOpacity={1}
@@ -785,7 +910,7 @@ export default function CrmDashboard() {
                 <Area
                   type="monotone"
                   dataKey="forecast"
-                  name={lang === 'ar' ? 'التوقعات الذكية' : 'AI Forecast'}
+                  name={lang === 'ar' ? 'التوقعات الذكية (محاكاة)' : 'AI Forecast (Simulation)'}
                   stroke="#8b5cf6"
                   strokeWidth={2}
                   strokeDasharray="4 4"
@@ -813,46 +938,57 @@ export default function CrmDashboard() {
             </p>
           </div>
 
-          <div className="h-48 w-full flex items-center justify-center relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={leadDistributionData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={75}
-                  paddingAngle={4}
-                  dataKey="value"
-                >
-                  {leadDistributionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomChartTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-2xl font-black text-slate-900 dark:text-white">
-                {relevantLeads.length}
-              </span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                {lang === 'ar' ? 'عميل نشط' : 'Total Leads'}
+          {relevantLeads.length === 0 ? (
+            <div className="h-48 w-full flex flex-col items-center justify-center text-center p-4">
+              <Users className="h-8 w-8 text-slate-300 dark:text-slate-600 mb-2" />
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {lang === 'ar' ? 'لا توجد بيانات عملاء محتملين حالياً' : 'No scored leads in this scope'}
               </span>
             </div>
-          </div>
-
-          <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-white/5">
-            {leadDistributionData.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">{item.name}</span>
+          ) : (
+            <>
+              <div className="h-48 w-full flex items-center justify-center relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={leadDistributionData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={75}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {leadDistributionData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomChartTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-2xl font-black text-slate-900 dark:text-white">
+                    {relevantLeads.length}
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    {lang === 'ar' ? 'عميل نشط' : 'Total Leads'}
+                  </span>
                 </div>
-                <span className="font-bold text-slate-900 dark:text-white">{item.value} leads</span>
               </div>
-            ))}
-          </div>
+
+              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-white/5">
+                {leadDistributionData.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">{item.name}</span>
+                    </div>
+                    <span className="font-bold text-slate-900 dark:text-white">{item.value} leads</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -1078,20 +1214,22 @@ export default function CrmDashboard() {
                   Details
                 </button>
               </div>
-              <div className="space-y-1.5">
-                {[
-                  { name: 'Karim Tazi', amount: 1040000, target: '86%' },
-                  { name: 'Yassine Mansouri', amount: 880000, target: '92%' },
-                  { name: 'Mehdi Alaoui', amount: 610000, target: '76%' },
-                ].map((rep, idx) => (
-                  <div key={rep.name} className="flex items-center justify-between text-xs py-1">
-                    <span className="font-semibold text-slate-700 dark:text-slate-200">
-                      {idx + 1}. {rep.name}
-                    </span>
-                    <span className="font-bold text-brand-600">{rep.target}</span>
-                  </div>
-                ))}
-              </div>
+              {topPerformers.length === 0 ? (
+                <p className="text-[11px] text-slate-400 py-1">
+                  {lang === 'ar' ? 'لا توجد صفقات فائزة مسجلة حالياً.' : 'No closed won deals recorded yet.'}
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {topPerformers.slice(0, 4).map((rep, idx) => (
+                    <div key={rep.name} className="flex items-center justify-between text-xs py-1">
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">
+                        {idx + 1}. {rep.name}
+                      </span>
+                      <span className="font-bold text-brand-600">{formatMAD(rep.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
